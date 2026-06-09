@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+:root { --font-display-serif: 'Newsreader', 'Tiempos Headline', Georgia, 'Times New Roman', serif; }
+
+/* ── Whoop redesign ─────────────────────────────────────── */
+.wh-ticker { display:flex; align-items:center; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.08); border-radius:10px; margin-bottom:12px; padding:9px 14px; overflow:hidden; gap:0; }
+.wh-ticker-pulse { width:7px; height:7px; border-radius:50%; background:#6BE3A4; box-shadow:0 0 8px #6BE3A4; flex-shrink:0; margin-right:8px; animation:wh-pulse 2s ease-in-out infinite; }
+@keyframes wh-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.wh-ticker-brand { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-tertiary); margin-right:8px; white-space:nowrap; flex-shrink:0; }
+.wh-ticker-sep { color:rgba(255,255,255,0.15); margin:0 8px; font-size:11px; flex-shrink:0; }
+.wh-ticker-items { flex:1; overflow:hidden; display:flex; align-items:center; }
+.wh-ticker-scroll { display:flex; align-items:center; flex-shrink:0; animation:wh-scroll 26s linear infinite; will-change:transform; }
+@keyframes wh-scroll { to { transform:translateX(-50%); } }
+@media (hover:hover) { .wh-ticker:hover .wh-ticker-scroll { animation-play-state:paused; } }
+.wh-ticker-sync { flex-shrink:0; font-family:ui-monospace,monospace; font-size:8px; color:var(--text-tertiary); margin-left:12px; white-space:nowrap; }
+.wh-tk-item { display:flex; align-items:center; gap:3px; white-space:nowrap; flex-shrink:0; }
+.wh-tk-lbl { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); }
+.wh-tk-val { font-family:ui-monospace,monospace; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; color:#6BE3A4; }
+.wh-tk-unit { font-family:ui-monospace,monospace; font-size:8px; color:var(--text-tertiary); }
+.wh-tk-delta { font-family:ui-monospace,monospace; font-size:9px; font-variant-numeric:tabular-nums; }
+.wh-hero-card { display:flex; gap:14px; align-items:center; background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:16px; margin-bottom:10px; }
+.wh-ring-wrap { position:relative; flex-shrink:0; width:170px; height:170px; }
+@media (max-width:420px) { .wh-ring-wrap { width:130px; height:130px; } }
+@media (min-width:1024px) { .wh-ring-wrap { width:190px; height:190px; } }
+.wh-ring-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
+.wh-ring-num { font-family:var(--font-display-serif); font-size:56px; font-weight:600; line-height:1; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
+.wh-ring-pct { font-size:13px; color:var(--text-secondary); }
+.wh-ring-label { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-tertiary); margin-top:2px; }
+.wh-ring-tagline { font-size:12px; font-weight:600; }
+.wh-trend-area { flex:1; min-width:0; display:flex; flex-direction:column; height:170px; }
+@media (max-width:420px) { .wh-trend-area { height:130px; } }
+@media (min-width:1024px) { .wh-trend-area { height:190px; } }
+.wh-trend-hdr { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+.wh-trend-title { font-family:var(--font-display-serif); font-size:15px; color:var(--text-secondary); }
+.wh-stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+@media (min-width:768px) { .wh-stats-grid { grid-template-columns:repeat(4,1fr); } }
+.wh-stat-card { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px 14px 12px; transition:background 0.15s; -webkit-tap-highlight-color:transparent; }
+.wh-stat-card[onclick]:active { background:rgba(255,255,255,0.07); }
+@media (hover:hover) { .wh-stat-card[onclick]:hover { background:rgba(255,255,255,0.05); cursor:pointer; } }
+@media (pointer:coarse) { .wh-stat-card[onclick] { min-height:44px; } }
+.wh-stat-lbl { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-tertiary); display:block; margin-bottom:4px; }
+.wh-stat-val { font-family:var(--font-display-serif); font-size:34px; font-weight:500; line-height:1.1; font-variant-numeric:tabular-nums; color:var(--text-primary); display:flex; align-items:baseline; gap:2px; }
+.wh-stat-unit { font-family:inherit; font-size:12px; font-weight:400; color:var(--text-tertiary); font-family:ui-sans-serif,system-ui,sans-serif; }
+.wh-stat-sub { font-size:11px; color:var(--text-tertiary); margin-top:3px; }
+.wh-stat-chip { display:inline-block; font-family:ui-monospace,monospace; font-size:9px; background:rgba(255,255,255,0.07); border-radius:999px; padding:2px 8px; color:var(--text-tertiary); margin-top:5px; }
+.wh-debt-card { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; margin-bottom:10px; }
+.wh-debt-hdr { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px; }
+.wh-debt-title { font-family:var(--font-display-serif); font-size:15px; color:var(--text-primary); }
+.wh-debt-total { font-family:var(--font-display-serif); font-size:15px; font-weight:500; color:#FF6B6B; }
+.wh-debt-sub { font-size:10px; color:var(--text-tertiary); margin-left:4px; }
+.wh-debt-bars { position:relative; display:flex; gap:6px; align-items:flex-end; height:84px; margin-top:4px; }
+.wh-debt-bars::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:rgba(255,255,255,0.12); }
+@media (min-width:1024px) { .wh-debt-bars { gap:10px; } }
+.wh-debt-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; }
+.wh-debt-bar-inner { width:100%; flex:1; display:flex; flex-direction:column; justify-content:flex-end; }
+.wh-debt-bar { width:100%; border-radius:3px 3px 0 0; min-height:4px; }
+.wh-debt-day { font-family:ui-monospace,monospace; font-size:8px; text-transform:uppercase; color:var(--text-tertiary); letter-spacing:0.05em; }
+.wh-tips-card { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px; margin-bottom:10px; }
+.wh-tips-title { font-family:var(--font-display-serif); font-size:15px; color:var(--text-primary); margin-bottom:10px; }
+.wh-tip-row { display:flex; align-items:flex-start; gap:8px; margin-bottom:8px; }
+.wh-tip-row:last-child { margin-bottom:0; }
+.wh-tip-dot { flex-shrink:0; margin-top:2px; font-size:11px; line-height:1; color:#6BE3A4; }
+.wh-tip-text { font-size:12px; color:var(--text-secondary); line-height:1.5; }
+.wh-connect-card { background:rgba(255,255,255,0.03); border:1px dashed rgba(255,255,255,0.15); border-radius:12px; padding:32px 20px; text-align:center; margin-bottom:12px; }
+.wh-connect-title { font-family:var(--font-display-serif); font-size:18px; font-weight:500; color:var(--text-secondary); margin-bottom:6px; }
+.wh-connect-sub { font-size:13px; color:var(--text-tertiary); margin-bottom:18px; }
+
+/* Recovery speedometer (legacy) */
+.hlth-speedo-wrap { position: relative; width: 100%; height: 140px; }
+.hlth-speedo-overlay { position: absolute; left: 0; right: 0; bottom: 24px; text-align: center; pointer-events: none; }
+
+/* Sleep strip */
+.hlth-sleep-stage-strip { display: flex; height: 14px; border-radius: 3px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+.hlth-sleep-chip { padding: 2px 8px; border-radius: 999px; font-size: 9px; font-family: ui-monospace,monospace; border: 1px solid; }
+
+/* Body row grid */
+.hlth-body-row { display: grid; grid-template-columns: 1fr 1.05fr; gap: 8px; }
+
+/* Supplement matrix */
+.hlth-supp-matrix-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; align-items: center; }
+
+/* Quick water strip */
+.hlth-water-quick { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.hlth-water-quick-chip { padding: 5px 13px; border-radius: 999px; font-family: ui-monospace,monospace; font-size: 12px; background: transparent; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+/* Metric info modal */
+.hlth-metric-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: flex-end; justify-content: center; z-index: 300; opacity: 0; transition: opacity 0.25s; }
+.hlth-metric-modal-overlay.open { opacity: 1; }
+.hlth-metric-modal-card { background: var(--surface); border-radius: 16px 16px 0 0; padding: 20px 20px 36px; width: 100%; max-width: 520px; transform: translateY(100%); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); }
+.hlth-metric-modal-overlay.open .hlth-metric-modal-card { transform: translateY(0); }
+.hlth-metric-info-row { margin-bottom: 14px; }
+.hlth-metric-info-row:last-child { margin-bottom: 0; }
+.hlth-metric-info-lbl { font-family: ui-monospace,monospace; font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); display: block; margin-bottom: 4px; }
+.hlth-metric-info-val { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+/* Body metrics modal */
+.hlth-body-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: flex-end; justify-content: center; z-index: 300; opacity: 0; transition: opacity 0.25s; }
+.hlth-body-modal-overlay.open { opacity: 1; }
+.hlth-body-modal-card { background: var(--surface); border-radius: 16px 16px 0 0; padding: 20px 20px 32px; width: 100%; max-width: 520px; transform: translateY(100%); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); }
+.hlth-body-modal-overlay.open .hlth-body-modal-card { transform: translateY(0); }
+.hlth-body-modal-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.hlth-body-modal-title { font-family: ui-monospace,monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-secondary); }
+.hlth-body-modal-close { background: none; border: none; font-size: 22px; color: var(--text-tertiary); cursor: pointer; line-height: 1; padding: 0 2px; }
+.hlth-body-modal-section { margin-bottom: 20px; }
+.hlth-body-modal-section:last-child { margin-bottom: 0; }
+.hlth-body-modal-lbl { font-family: ui-monospace,monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); display: block; margin-bottom: 4px; }
+.hlth-body-modal-cur { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-primary); line-height: 1; margin-bottom: 10px; }
+.hlth-body-modal-cur-unit { font-size: 13px; font-weight: 400; color: var(--text-tertiary); margin-left: 3px; }
+.hlth-body-modal-row { display: flex; gap: 8px; align-items: center; }
+.hlth-body-modal-in { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; color: var(--text-primary); font-size: 15px; padding: 10px 12px; outline: none; }
+.hlth-body-modal-in:focus { border-color: rgba(107,227,164,0.5); }
+.hlth-body-modal-unit { font-family: ui-monospace,monospace; font-size: 11px; color: var(--text-tertiary); min-width: 24px; }
+.hlth-body-modal-btn { background: var(--success); color: #050506; border: none; border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.hlth-body-modal-divider { height: 1px; background: rgba(255,255,255,0.07); margin-bottom: 20px; }
+
+/* ── Health tab switcher ──────────────────────────────────── */
+.hlth-tab-bar { display:flex; gap:4px; margin-bottom:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:4px; }
+.hlth-tab-btn { flex:1; padding:8px 4px; border:none; border-radius:8px; background:transparent; color:var(--text-tertiary); font-family:ui-monospace,monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; transition:background 0.18s, color 0.18s; }
+.hlth-tab-btn.active { background:rgba(255,255,255,0.1); color:var(--text-primary); }
+.hlth-panel { display:none; }
+.hlth-panel.active { display:block; }
+
+/* ── Caffeine tracker ─────────────────────────────────────── */
+.caf-hero-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.caf-ring-col { flex-shrink: 0; }
+.caf-ring-wrap { position: relative; width: 134px; height: 134px; }
+.caf-ring-svg  { width: 100%; height: 100%; }
+#cafArc { transition: stroke-dashoffset 0.45s cubic-bezier(0.22,1,0.36,1), stroke 0.3s; }
+.caf-ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.caf-ring-score { font-size: 40px; font-weight: 800; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; transition: color 0.3s; }
+.caf-ring-state { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; margin-top: 2px; transition: color 0.3s; }
+.caf-ring-lbl { font-family: ui-monospace,monospace; font-size: 7.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-tertiary); margin-top: 3px; }
+.caf-curve-col { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 6px; }
+.caf-chart-hint { font-family: ui-monospace,monospace; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); }
+.caf-chart-wrap { width: 100%; height: 120px; cursor: crosshair; position: relative; border-radius: 8px; overflow: hidden; }
+@media (min-width: 560px) { .caf-chart-wrap { height: 140px; } }
+.caf-chart-wrap svg { width: 100%; height: 100%; display: block; }
+.caf-x-axis { display: flex; justify-content: space-between; font-family: ui-monospace,monospace; font-size: 8px; color: var(--text-tertiary); letter-spacing: 0.04em; padding: 0 1px; }
+.caf-mode-row { display: flex; gap: 5px; }
+.caf-mode-btn { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; color: var(--text-tertiary); font-family: ui-monospace,monospace; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 10px; cursor: pointer; transition: all 0.15s; font-weight: 700; }
+.caf-mode-btn.active { background: rgba(201,163,107,0.15); color: #C9A36B; border-color: rgba(201,163,107,0.3); }
+.caf-footer-band { display: flex; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 16px; padding-top: 14px; gap: 0; }
+.caf-fb-item { flex: 1; text-align: center; padding: 0 6px; }
+.caf-fb-item + .caf-fb-item { border-left: 1px solid rgba(255,255,255,0.06); }
+.caf-fb-lbl { font-family: ui-monospace,monospace; font-size: 7.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); display: block; margin-bottom: 4px; }
+.caf-fb-val { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.caf-fb-sub { font-family: ui-monospace,monospace; font-size: 9px; color: var(--text-tertiary); display: block; margin-top: 1px; }
+.caf-timing-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px; }
+@media (max-width: 520px) { .caf-timing-grid { grid-template-columns: 1fr 1fr; } }
+.caf-tile { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 14px 12px; }
+.caf-tile-lbl { font-family: ui-monospace,monospace; font-size: 7.5px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-tertiary); display: block; margin-bottom: 6px; }
+.caf-tile-val { font-size: 21px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.caf-tile-sub { font-size: 10px; color: var(--text-tertiary); margin-top: 4px; line-height: 1.4; }
+.caf-tips { margin-top: 2px; }
+.caf-tip { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 9px; }
+.caf-tip:last-child { margin-bottom: 0; }
+.caf-tip-dot { width: 5px; height: 5px; border-radius: 50%; background: #C9A36B; flex-shrink: 0; margin-top: 5px; }
+.caf-tip-text { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; }
+.caf-today-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.caf-today-mg { font-size: 32px; font-weight: 800; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; line-height: 1; }
+.caf-today-limit { font-family: ui-monospace,monospace; font-size: 11px; color: var(--text-tertiary); }
+.caf-bar-wrap { height: 8px; background: rgba(255,255,255,0.07); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+.caf-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s, background 0.3s; }
+.caf-active-now { font-family: ui-monospace,monospace; font-size: 11px; color: var(--text-tertiary); margin-bottom: 10px; }
+.caf-today-note { font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; padding: 10px 12px; background: rgba(255,255,255,0.025); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); }
+.caf-search { width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: var(--text-primary); font-size: 14px; font-family: inherit; outline: none; margin-bottom: 12px; display: block; }
+.caf-search::placeholder { color: var(--text-tertiary); }
+.caf-search:focus { border-color: rgba(201,163,107,0.4); }
+.caf-drink-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(130px,1fr)); gap: 6px; max-height: 300px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+.caf-drink-btn { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 10px 11px; text-align: left; cursor: pointer; transition: background 0.15s, border-color 0.15s; font-family: inherit; color: var(--text-primary); display: block; width: 100%; }
+.caf-drink-btn:hover { background: rgba(201,163,107,0.1); border-color: rgba(201,163,107,0.28); }
+.caf-drink-em  { font-size: 18px; display: block; margin-bottom: 5px; line-height: 1; }
+.caf-drink-nm  { font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 2px; line-height: 1.3; }
+.caf-drink-mg  { font-family: ui-monospace,monospace; font-size: 11px; font-weight: 700; color: #C9A36B; }
+.caf-custom-form { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+.caf-in { flex: 1; min-width: 100px; padding: 9px 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-primary); font-size: 13px; font-family: inherit; outline: none; }
+.caf-in:focus { border-color: rgba(201,163,107,0.4); }
+.caf-in::placeholder { color: var(--text-tertiary); }
+.caf-add-btn { padding: 9px 18px; border-radius: 8px; border: none; background: linear-gradient(180deg,#C9A36B 0%,#B8904F 100%); color: #050506; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.caf-log-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; margin-bottom: 7px; }
+.caf-log-em   { font-size: 22px; flex-shrink: 0; }
+.caf-log-info { flex: 1; min-width: 0; }
+.caf-log-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.caf-log-meta { font-family: ui-monospace,monospace; font-size: 9.5px; color: var(--text-tertiary); margin-top: 3px; line-height: 1.6; }
+.caf-log-mg   { font-family: ui-monospace,monospace; font-size: 13px; font-weight: 700; color: #C9A36B; flex-shrink: 0; }
+.caf-log-del  { background: none; border: none; cursor: pointer; color: var(--text-tertiary); font-size: 16px; padding: 4px; opacity: 0.45; transition: opacity 0.2s, color 0.2s; flex-shrink: 0; }
+.caf-log-del:hover { opacity: 1; color: var(--danger); }
+.caf-empty { font-size: 12px; color: var(--text-tertiary); font-style: italic; padding: 14px 0; text-align: center; }
+.caf-section-lbl { font-family: ui-monospace,monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 10px; display: block; }
+</style>
+</head>
+<body>
+<!-- Auth overlay -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+    <div class="auth-title">My Dashboard</div>
+    <p class="auth-sub">Sign in to sync your goals across all your devices.</p>
+    <button class="auth-sign-in-btn" id="signInBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="appContainer"><div class="tab-page active" id="page-health">
+<div class="container">
+  <div class="gym-tab-hdr">
+    <span class="gym-tab-title">Health</span>
+    <button class="gym-gear-btn" id="suppGearBtn" title="Manage supplements">&#9881;</button>
+  </div>
+
+  <!-- Tab switcher -->
+  <div class="hlth-tab-bar" id="hlthTabBar">
+    <button class="hlth-tab-btn active" data-panel="recovery">Recovery</button>
+    <button class="hlth-tab-btn" data-panel="caffeine">Caffeine</button>
+    <button class="hlth-tab-btn" data-panel="hydration">Hydration</button>
+  </div>
+
+  <!-- Recovery panel (Whoop + sleep + recovery data) -->
+  <div id="whoopHealthSection" class="hlth-panel active"></div>
+
+  <!-- Caffeine panel -->
+  <div id="caffeinePanel" class="hlth-panel">
+    <!-- Your Day -->
+    <div class="gm-card" style="padding:18px 20px;margin-bottom:10px;">
+      <span class="caf-section-lbl">Your Day</span>
+      <div class="caf-hero-row">
+        <div class="caf-ring-col">
+          <div class="caf-ring-wrap" id="cafRingWrap">
+            <svg class="caf-ring-svg" viewBox="0 0 120 120">
+              <defs>
+                <filter id="cafGlow" x="-60%" y="-60%" width="220%" height="220%">
+                  <feGaussianBlur stdDeviation="3.5" result="b"/>
+                  <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
+              <circle id="cafArc" cx="60" cy="60" r="52" fill="none" stroke="#C9A36B" stroke-width="8"
+                stroke-linecap="round" transform="rotate(-90 60 60)"
+                stroke-dasharray="326.73" stroke-dashoffset="326.73"
+                filter="url(#cafGlow)"/>
+            </svg>
+            <div class="caf-ring-center">
+              <div class="caf-ring-score" id="cafRingScore">—</div>
+              <div class="caf-ring-state" id="cafRingState">—</div>
+              <div class="caf-ring-lbl" id="cafRingLbl">RIGHT NOW</div>
+            </div>
+          </div>
+        </div>
+        <div class="caf-curve-col">
+          <div class="caf-chart-hint">Hover or drag the curve</div>
+          <div class="caf-chart-wrap" id="cafChartWrap"></div>
+          <div class="caf-x-axis">
+            <span>12A</span><span>3</span><span>6</span><span>9</span>
+            <span>12P</span><span>3</span><span>6</span><span>9</span><span>12A</span>
+          </div>
+          <div class="caf-mode-row" id="cafModeRow">
+            <button class="caf-mode-btn active" data-mode="LINE">LINE</button>
+            <button class="caf-mode-btn" data-mode="BARS">BARS</button>
+            <button class="caf-mode-btn" data-mode="STACK">STACK</button>
+          </div>
+        </div>
+      </div>
+      <div class="caf-footer-band" id="cafFooter">
+        <div class="caf-fb-item">
+          <span class="caf-fb-lbl">Peak focus</span>
+          <div class="caf-fb-val" id="cafFbPeak">—</div>
+          <span class="caf-fb-sub" id="cafFbPeakSub"></span>
+        </div>
+        <div class="caf-fb-item">
+          <span class="caf-fb-lbl">Predicted crash</span>
+          <div class="caf-fb-val" id="cafFbCrash">—</div>
+          <span class="caf-fb-sub" id="cafFbCrashSub"></span>
+        </div>
+        <div class="caf-fb-item">
+          <span class="caf-fb-lbl">Last coffee by</span>
+          <div class="caf-fb-val" id="cafFbCutoff">—</div>
+          <span class="caf-fb-sub" id="cafFbCutoffSub"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Smart Timing -->
+    <div class="gm-card" style="padding:18px 20px;margin-bottom:10px;">
+      <span class="caf-section-lbl">Smart Timing</span>
+      <div class="caf-timing-grid" id="cafTimingGrid"></div>
+      <div class="caf-tips" id="cafTips"></div>
+    </div>
+
+    <!-- Today -->
+    <div class="gm-card" style="padding:18px 20px;margin-bottom:10px;" id="cafTodayCard"></div>
+
+    <!-- Log a Drink -->
+    <div class="gm-card" style="padding:18px 20px;margin-bottom:10px;">
+      <span class="caf-section-lbl">Log a Drink</span>
+      <input class="caf-search" id="cafSearch" type="search" placeholder="Search drinks…" autocomplete="off">
+      <div class="caf-drink-grid" id="cafDrinkGrid"></div>
+      <div class="caf-custom-form">
+        <input class="caf-in" id="cafCustomName" placeholder="Custom name" style="flex:2;">
+        <input class="caf-in" id="cafCustomMg" placeholder="mg" type="number" min="1" max="2000" style="flex:0.7;min-width:72px;">
+        <button class="caf-add-btn" id="cafCustomBtn">Add</button>
+      </div>
+    </div>
+
+    <!-- Logged Today -->
+    <div style="margin-bottom:16px;">
+      <span class="caf-section-lbl" style="display:block;margin-bottom:8px;">Logged Today</span>
+      <div id="cafLoggedList"></div>
+    </div>
+  </div>
+
+  <!-- Hydration + Supplements panel -->
+  <div id="hydrationPanel" class="hlth-panel"></div>
+
+</div>
+
+<!-- Body metrics modal -->
+<div class="hlth-body-modal-overlay" id="hlthBodyModal" style="display:none" onclick="if(event.target===this)hlthBodyModalClose()">
+  <div class="hlth-body-modal-card">
+    <div class="hlth-body-modal-hdr">
+      <span class="hlth-body-modal-title">Body Metrics</span>
+      <button class="hlth-body-modal-close" onclick="hlthBodyModalClose()">&#215;</button>
+    </div>
+
+    <div class="hlth-body-modal-section">
+      <span class="hlth-body-modal-lbl">Height</span>
+      <div class="hlth-body-modal-cur" id="hlthModalHeightCur">—</div>
+      <div class="hlth-body-modal-row">
+        <input class="hlth-body-modal-in" id="hlthModalHeightIn" type="number" min="100" max="250" step="0.1" placeholder="e.g. 183">
+        <span class="hlth-body-modal-unit">cm</span>
+        <button class="hlth-body-modal-btn" id="hlthModalHeightSave">Save</button>
+      </div>
+    </div>
+
+    <div class="hlth-body-modal-divider"></div>
+
+    <div class="hlth-body-modal-section">
+      <span class="hlth-body-modal-lbl">Body Weight</span>
+      <div class="hlth-body-modal-cur" id="hlthModalWeightCur">—</div>
+      <div class="hlth-body-modal-row">
+        <input class="hlth-body-modal-in" id="hlthModalWeightIn" type="number" min="0" step="0.1" placeholder="0.0">
+        <span class="hlth-body-modal-unit" id="hlthModalWeightUnit">kg</span>
+        <button class="hlth-body-modal-btn" id="hlthModalWeightSave">Log</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Metric info modal -->
+<div class="hlth-metric-modal-overlay" id="hlthMetricInfoOverlay" style="display:none" onclick="if(event.target===this)hlthHideMetricInfo()">
+  <div class="hlth-metric-modal-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <span id="hlthMetricInfoName" style="font-size:16px;font-weight:700;"></span>
+      <button style="background:none;border:none;font-size:22px;color:var(--text-tertiary);cursor:pointer;line-height:1;padding:0 2px;" onclick="hlthHideMetricInfo()">&#215;</button>
+    </div>
+    <div style="height:1px;background:rgba(255,255,255,0.07);margin-bottom:16px;"></div>
+    <div class="hlth-metric-info-row">
+      <span class="hlth-metric-info-lbl">What it is</span>
+      <span class="hlth-metric-info-val" id="hlthMetricInfoWhat"></span>
+    </div>
+    <div class="hlth-metric-info-row">
+      <span class="hlth-metric-info-lbl">What it determines</span>
+      <span class="hlth-metric-info-val" id="hlthMetricInfoDet"></span>
+    </div>
+    <div class="hlth-metric-info-row">
+      <span class="hlth-metric-info-lbl">Good values</span>
+      <span class="hlth-metric-info-val" id="hlthMetricInfoGood"></span>
+    </div>
+    <div class="hlth-metric-info-row">
+      <span class="hlth-metric-info-lbl">How to improve</span>
+      <span class="hlth-metric-info-val" id="hlthMetricInfoImp"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Settings overlay -->
+<div class="gym-overlay supp-overlay" id="suppSettingsOverlay">
+  <div class="gym-ov-hdr">
+    <button class="gym-ov-back" id="suppSettingsBack">&#8249;</button>
+    <span class="gym-ov-title">Manage Supplements</span>
+  </div>
+  <div class="gym-ov-body">
+    <div class="supp-settings-list" id="suppSettingsList"></div>
+    <div class="supp-add-form">
+      <div class="supp-add-title">Add Supplement</div>
+      <div class="supp-add-row">
+        <input class="supp-add-inp" id="suppAddName" placeholder="Name (e.g. Vitamin D)" />
+        <input class="supp-add-inp" id="suppAddDose" placeholder="Dose (e.g. 2 tablets)" style="max-width:150px" />
+      </div>
+      <div class="supp-session-checks">
+        <label class="supp-session-check"><input type="checkbox" id="suppChkMorning"> Morning</label>
+        <label class="supp-session-check"><input type="checkbox" id="suppChkLunch"> Lunch</label>
+        <label class="supp-session-check"><input type="checkbox" id="suppChkNight"> Night</label>
+      </div>
+      <button class="supp-add-btn" id="suppAddBtn">Add Supplement</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<nav class="bottom-nav" aria-label="Main navigation">
+  <button class="nav-tab" data-tab="home" aria-label="Home">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>
+    </div>
+    <span class="nav-tab-label">Home</span>
+  </button>
+  <button class="nav-tab" data-tab="tasks" aria-label="Tasks">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    </div>
+    <span class="nav-tab-label">Tasks</span>
+  </button>
+  <button class="nav-tab" data-tab="gym" aria-label="Gym">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="2" height="6" rx="0.5"/><rect x="4.5" y="7.5" width="3" height="9" rx="0.5"/><line x1="7.5" y1="12" x2="16.5" y2="12"/><rect x="16.5" y="7.5" width="3" height="9" rx="0.5"/><rect x="20" y="9" width="2" height="6" rx="0.5"/></svg>
+    </div>
+    <span class="nav-tab-label">Gym</span>
+  </button>
+  <button class="nav-tab active" data-tab="health" aria-label="Health">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+    </div>
+    <span class="nav-tab-label">Health</span>
+  </button>
+  <button class="nav-tab" data-tab="nutrition" aria-label="Nutrition">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v6c0 1.1.9 2 2 2a2 2 0 002-2V3"/><line x1="5" y1="9" x2="5" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><path d="M15 3a4 4 0 014 4v1h-4"/></svg>
+    </div>
+    <span class="nav-tab-label">Nutrition</span>
+  </button>
+  <button class="nav-tab" data-tab="finance" aria-label="Finance">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="4" height="7"/><rect x="9" y="8" width="4" height="13"/><rect x="16" y="4" width="4" height="17"/><line x1="1" y1="21" x2="23" y2="21"/></svg>
+    </div>
+    <span class="nav-tab-label">Finance</span>
+  </button>
+</nav>
+</div>
+<script src="shared.js"></script>
+<script>
+// ── Health tab switcher ──────────────────────────────────────
+(function() {
+  var bar = document.getElementById('hlthTabBar');
+  if (!bar) return;
+  bar.addEventListener('click', function(e) {
+    var btn = e.target.closest('.hlth-tab-btn');
+    if (!btn) return;
+    bar.querySelectorAll('.hlth-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    var panelId = btn.dataset.panel;
+    document.querySelectorAll('.hlth-panel').forEach(function(p) { p.classList.remove('active'); });
+    var targetEl = panelId === 'recovery' ? 'whoopHealthSection'
+                 : panelId === 'caffeine' ? 'caffeinePanel'
+                 : 'hydrationPanel';
+    var panel = document.getElementById(targetEl);
+    if (panel) panel.classList.add('active');
+    if (panelId === 'caffeine' && window.cafHealthInit) {
+      cafSyncFromShared();
+      cafRerender();
+    }
+  });
+})();
+
+// ── Caffeine tracker (health tab embedded) ────────────────────
+var CAF_HALF_LIFE   = 5;
+var CAF_PEAK_DELAY  = 0.75;
+var CAF_FDA_LIMIT   = 400;
+var CAF_LOGS_KEY    = 'caf:logs';
+var CAF_CUSTOM_KEY  = 'caf:custom';
+var CAF_CIRC        = 2 * Math.PI * 52;
+
+var cafWakeHour      = 7;
+var cafBedHour       = 23;
+var cafWeightKg      = null;
+var cafRecoveryScore = null;
+var cafChartMode     = 'LINE';
+var cafCurveCache    = null;
+var cafHealthInitDone = false;
+
+var CAF_DRINKS = [
+  {name:'Espresso (single)',mg:63,emoji:'☕'},{name:'Espresso (double)',mg:126,emoji:'☕'},
+  {name:'Drip coffee 8oz',mg:95,emoji:'☕'},{name:'Drip coffee 12oz',mg:142,emoji:'☕'},
+  {name:'Drip coffee 16oz',mg:190,emoji:'☕'},{name:'Cold brew 12oz',mg:200,emoji:'☕'},
+  {name:'Cold brew concentrate 2oz',mg:130,emoji:'☕'},{name:'Cappuccino',mg:63,emoji:'☕'},
+  {name:'Latte 8oz',mg:63,emoji:'☕'},{name:'Latte 12oz',mg:126,emoji:'☕'},
+  {name:'Flat white',mg:130,emoji:'☕'},{name:'Long black',mg:120,emoji:'☕'},
+  {name:'Americano',mg:120,emoji:'☕'},{name:'Macchiato',mg:80,emoji:'☕'},
+  {name:'Moka pot 4-cup',mg:200,emoji:'☕'},{name:'French press 8oz',mg:107,emoji:'☕'},
+  {name:'Pour-over 10oz',mg:150,emoji:'☕'},{name:'Instant coffee 8oz',mg:62,emoji:'☕'},
+  {name:'Nitro cold brew 9.6oz',mg:280,emoji:'☕'},{name:'Iced coffee 12oz',mg:165,emoji:'🧊'},
+  {name:'Frappuccino 16oz',mg:95,emoji:'☕'},{name:'Mocha 12oz',mg:95,emoji:'☕'},
+  {name:'Black tea 8oz',mg:47,emoji:'🍵'},{name:'Green tea 8oz',mg:28,emoji:'🍵'},
+  {name:'Matcha latte 12oz',mg:70,emoji:'🍵'},{name:'White tea 8oz',mg:15,emoji:'🍵'},
+  {name:'Oolong tea 8oz',mg:37,emoji:'🍵'},{name:'Chai latte 12oz',mg:50,emoji:'🍵'},
+  {name:'Yerba mate 8oz',mg:78,emoji:'🍵'},{name:'Red Bull 8.4oz',mg:80,emoji:'⚡'},
+  {name:'Red Bull 12oz',mg:114,emoji:'⚡'},{name:'Monster 16oz',mg:160,emoji:'⚡'},
+  {name:'Monster Zero 16oz',mg:140,emoji:'⚡'},{name:'Celsius 12oz',mg:200,emoji:'⚡'},
+  {name:'Prime Energy 12oz',mg:200,emoji:'⚡'},{name:'Ghost Energy 16oz',mg:200,emoji:'⚡'},
+  {name:'Reign 16oz',mg:300,emoji:'⚡'},{name:'Bang 16oz',mg:300,emoji:'⚡'},
+  {name:'Rockstar 16oz',mg:160,emoji:'⚡'},{name:'Alani Nu 12oz',mg:200,emoji:'⚡'},
+  {name:'NOS 16oz',mg:160,emoji:'⚡'},{name:'REIZE sachet',mg:50,emoji:'⚡'},
+  {name:'Coca-Cola 12oz',mg:34,emoji:'🥤'},{name:'Diet Coke 12oz',mg:46,emoji:'🥤'},
+  {name:'Pepsi 12oz',mg:38,emoji:'🥤'},{name:'Mountain Dew 12oz',mg:54,emoji:'🥤'},
+  {name:'Dr Pepper 12oz',mg:41,emoji:'🥤'},{name:"Barq's Root Beer 12oz",mg:22,emoji:'🥤'},
+  {name:'Pre-workout standard',mg:150,emoji:'💊'},{name:'Pre-workout stim heavy',mg:250,emoji:'💊'},
+  {name:'C4 Original 1 scoop',mg:150,emoji:'💊'},{name:'C4 Extreme 1 scoop',mg:200,emoji:'💊'},
+  {name:'Ghost Pre-workout',mg:202,emoji:'💊'},{name:'Gold Standard PWO',mg:175,emoji:'💊'},
+  {name:'Caffeine pill 200mg',mg:200,emoji:'💊'},{name:'Caffeine pill 100mg',mg:100,emoji:'💊'},
+  {name:'Dark chocolate 1oz',mg:24,emoji:'🍫'},{name:'Milk chocolate 1oz',mg:6,emoji:'🍫'},
+  {name:'Mocha ice cream 1 cup',mg:58,emoji:'🍦'},{name:'Hot chocolate 8oz',mg:5,emoji:'🍫'},
+];
+
+function cafTodayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function cafGetLogs() { try { return JSON.parse(localStorage.getItem(CAF_LOGS_KEY) || '[]'); } catch { return []; } }
+function cafSaveLogs(arr) { localStorage.setItem(CAF_LOGS_KEY, JSON.stringify(arr)); }
+function cafGetTodayLogs() { var t = cafTodayStr(); return cafGetLogs().filter(function(l){ return l.date === t; }); }
+function cafGetCustom() { try { return JSON.parse(localStorage.getItem(CAF_CUSTOM_KEY) || '[]'); } catch { return []; } }
+function cafSaveCustom(arr) { localStorage.setItem(CAF_CUSTOM_KEY, JSON.stringify(arr)); }
+function cafNewId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function cafActiveMgAt(log, refMs) {
+  var logMs = new Date(log.ts).getTime();
+  var h = (refMs - logMs) / 3600000;
+  if (h < 0) return 0;
+  if (h < CAF_PEAK_DELAY) return log.mg * (h / CAF_PEAK_DELAY);
+  return log.mg * Math.pow(0.5, (h - CAF_PEAK_DELAY) / CAF_HALF_LIFE);
+}
+
+function cafTotalMgAt(logs, refMs) {
+  return logs.reduce(function(s,l){ return s + cafActiveMgAt(l, refMs); }, 0);
+}
+
+function cafMsAtHour(h) {
+  var d = new Date();
+  d.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0);
+  return d.getTime();
+}
+
+function cafGauss(x, mu, sd) { return Math.exp(-0.5 * Math.pow((x - mu) / sd, 2)); }
+
+function cafEnergyAt(h, mg) {
+  var asleep = h < cafWakeHour || h >= cafBedHour;
+  var circ   = 50 + 18 * Math.cos(2 * Math.PI * (h - 16.5) / 24);
+  if (asleep) return Math.max(3, Math.min(20, circ - 34));
+  var awake  = Math.max(0, Math.min(h - cafWakeHour, 24));
+  var lunch  = 10 * cafGauss(h, 14, 1.4);
+  var press  = awake * 1.7;
+  var bump   = 10 * cafGauss(h - cafWakeHour, 1.2, 0.9);
+  var caff   = 34 * (1 - Math.exp(-mg / 110));
+  return Math.max(0, Math.min(100, circ - lunch - press + bump + caff));
+}
+
+function cafComputeCurve(logs) {
+  var N = 144, curve = [], base = [];
+  for (var i = 0; i < N; i++) {
+    var h = i * 24 / N, ms = cafMsAtHour(h), mg = cafTotalMgAt(logs, ms);
+    curve.push(cafEnergyAt(h, mg));
+    base.push(cafEnergyAt(h, 0));
+  }
+  return { curve: curve, base: base };
+}
+
+function cafEnergyColor(s) { return s >= 62 ? '#6BE3A4' : s >= 40 ? '#F2C063' : '#FF6B6B'; }
+function cafEnergyState(s) {
+  if (s >= 75) return 'Peak';
+  if (s >= 62) return 'High';
+  if (s >= 50) return 'Steady';
+  if (s >= 40) return 'Dip';
+  return 'Low';
+}
+
+function cafDailyLimit() {
+  if (cafRecoveryScore !== null) {
+    if (cafRecoveryScore < 34) return 200;
+    if (cafRecoveryScore < 67) return 300;
+  }
+  return CAF_FDA_LIMIT;
+}
+
+function cafFmtH(h) {
+  if (h == null || isNaN(h)) return '—';
+  var hrs  = Math.floor(((h % 24) + 24) % 24);
+  var mins = Math.round(((h % 1) + 1) % 1 * 60);
+  if (mins === 60) { hrs = (hrs + 1) % 24; mins = 0; }
+  var ap = hrs < 12 ? 'AM' : 'PM';
+  var h12 = hrs === 0 ? 12 : hrs > 12 ? hrs - 12 : hrs;
+  return h12 + ':' + String(mins).padStart(2,'0') + ' ' + ap;
+}
+
+function cafFindPeakWindow(curve) {
+  var step = 24 / 144, now = new Date(), nowH = now.getHours() + now.getMinutes() / 60;
+  var best = null, bestScore = -1;
+  for (var i = 0; i < 144 - 12; i++) {
+    var h = i * step;
+    if (h < nowH || h > nowH + 12) continue;
+    if (h < cafWakeHour || h >= cafBedHour) continue;
+    var end = Math.min(i + 12, 143), sum = 0;
+    for (var j = i; j < end; j++) sum += curve[j];
+    var avg = sum / (end - i);
+    if (avg > bestScore) { bestScore = avg; best = h; }
+  }
+  return best !== null ? { h: best, score: Math.round(bestScore) } : null;
+}
+
+function cafFindCrash(curve) {
+  var step = 24 / 144, now = new Date(), nowH = now.getHours() + now.getMinutes() / 60;
+  var maxDrop = 0, crashH = null, crashLow = null;
+  for (var i = 0; i < 144 - 3; i++) {
+    var h = i * step;
+    if (h < nowH || h > nowH + 8) continue;
+    if (h < cafWakeHour || h + 0.5 >= cafBedHour) continue;
+    var drop = curve[i] - curve[i + 3];
+    if (drop > maxDrop && drop > 8) { maxDrop = drop; crashH = h + 0.5; crashLow = curve[i + 3]; }
+  }
+  return maxDrop > 8 ? { h: crashH, low: Math.round(crashLow), drop: Math.round(maxDrop) } : null;
+}
+
+function cafCoffeeCutoff() { return cafBedHour - CAF_PEAK_DELAY - CAF_HALF_LIFE * Math.log2(95 / 30); }
+
+function cafBuildSvg(curve, base, mode) {
+  var W = 600, H = 140;
+  var yOf = function(v){ return (5 + (1 - Math.max(0, Math.min(100, v)) / 100) * 122).toFixed(1); };
+  var xOf = function(i){ return ((i / 143) * W).toFixed(1); };
+  var wakeX = (cafWakeHour / 24 * W).toFixed(1), bedX = (cafBedHour / 24 * W).toFixed(1);
+  var now = new Date(), nowH = now.getHours() + now.getMinutes() / 60;
+  var nowX = (nowH / 24 * W).toFixed(1), nowIdx = Math.min(Math.round(nowH * 6), 143);
+  var nowY = yOf(curve[nowIdx]);
+  function makePath(vals) { return vals.map(function(v,i){ return (i===0?'M':'L')+xOf(i)+','+yOf(v); }).join(' '); }
+  function makeArea(vals) { return makePath(vals)+' L'+W+','+H+' L0,'+H+' Z'; }
+  var content = '';
+  if (mode === 'STACK') {
+    content += '<path d="'+makeArea(base)+'" fill="rgba(255,255,255,0.06)"/>';
+    var boostD = makePath(curve);
+    for (var bi = 142; bi >= 0; bi--) boostD += ' L'+xOf(bi)+','+yOf(base[bi]);
+    boostD += ' Z';
+    content += '<path d="'+boostD+'" fill="rgba(201,163,107,0.18)"/>';
+    content += '<path d="'+makePath(base)+'" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.2"/>';
+    content += '<path d="'+makePath(curve)+'" fill="none" stroke="#C9A36B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="url(#cGlow)"/>';
+  } else if (mode === 'BARS') {
+    var bw = (W / 144).toFixed(2);
+    content += curve.map(function(v,i){
+      var by = yOf(v), bh = (H - parseFloat(by)).toFixed(1);
+      var col = v >= 62 ? 'rgba(107,227,164,0.55)' : v >= 40 ? 'rgba(242,192,99,0.55)' : 'rgba(255,107,107,0.55)';
+      return '<rect x="'+xOf(i)+'" y="'+by+'" width="'+bw+'" height="'+bh+'" fill="'+col+'"/>';
+    }).join('');
+  } else {
+    content += '<path d="'+makeArea(curve)+'" fill="url(#aGrad)"/>';
+    content += '<path d="'+makePath(curve)+'" fill="none" stroke="#C9A36B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#cGlow)"/>';
+  }
+  return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" id="cafSvg" style="display:block;width:100%;height:100%;">' +
+    '<defs><filter id="cGlow" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<linearGradient id="aGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#C9A36B" stop-opacity="0.22"/><stop offset="100%" stop-color="#C9A36B" stop-opacity="0.02"/></linearGradient></defs>' +
+    '<rect x="0" y="0" width="'+wakeX+'" height="'+H+'" fill="rgba(0,0,0,0.28)"/>' +
+    '<rect x="'+bedX+'" y="0" width="'+(W-parseFloat(bedX)).toFixed(1)+'" height="'+H+'" fill="rgba(0,0,0,0.28)"/>' +
+    content +
+    '<line x1="'+nowX+'" y1="0" x2="'+nowX+'" y2="'+H+'" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-dasharray="3,3"/>' +
+    '<circle cx="'+nowX+'" cy="'+nowY+'" r="3.5" fill="#C9A36B" stroke="#050506" stroke-width="1.2"/>' +
+    '<rect id="cafOverlay" x="0" y="0" width="'+W+'" height="'+H+'" fill="transparent" style="cursor:crosshair"/>' +
+    '</svg>';
+}
+
+function cafUpdateRing(score, lbl) {
+  var color  = cafEnergyColor(score);
+  var offset = CAF_CIRC * (1 - Math.max(0, Math.min(100, score)) / 100);
+  var arc = document.getElementById('cafArc');
+  if (arc) { arc.setAttribute('stroke', color); arc.setAttribute('stroke-dashoffset', offset.toFixed(2)); }
+  var sc = document.getElementById('cafRingScore');
+  if (sc) { sc.textContent = Math.round(score); sc.style.color = color; }
+  var st = document.getElementById('cafRingState');
+  if (st) { st.textContent = cafEnergyState(score); st.style.color = color; }
+  var lb = document.getElementById('cafRingLbl');
+  if (lb) lb.textContent = lbl || 'RIGHT NOW';
+}
+
+function cafAttachChartEvents(curve) {
+  var wrap = document.getElementById('cafChartWrap');
+  if (!wrap) return;
+  function onMove(clientX) {
+    var rect = wrap.getBoundingClientRect();
+    var frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    var h = frac * 24, idx = Math.min(Math.round(h * 6), 143);
+    cafUpdateRing(curve[idx], cafFmtH(h));
+  }
+  function onLeave() {
+    var now = new Date(), nowH = now.getHours() + now.getMinutes() / 60;
+    var idx = Math.min(Math.round(nowH * 6), 143);
+    cafUpdateRing(curve[idx]);
+  }
+  wrap.addEventListener('mousemove', function(e){ onMove(e.clientX); });
+  wrap.addEventListener('mouseleave', onLeave);
+  wrap.addEventListener('touchmove', function(e){ e.preventDefault(); onMove(e.touches[0].clientX); }, { passive: false });
+  wrap.addEventListener('touchend', onLeave);
+}
+
+function cafRenderHero(logs) {
+  var res = cafComputeCurve(logs);
+  cafCurveCache = res;
+  var curve = res.curve, base = res.base;
+  var now = new Date(), nowH = now.getHours() + now.getMinutes() / 60;
+  var nowIdx = Math.min(Math.round(nowH * 6), 143);
+  cafUpdateRing(curve[nowIdx]);
+  var wrap = document.getElementById('cafChartWrap');
+  if (wrap) { wrap.innerHTML = cafBuildSvg(curve, base, cafChartMode); cafAttachChartEvents(curve); }
+  var pk = cafFindPeakWindow(curve), cr = cafFindCrash(curve), ct = cafCoffeeCutoff();
+  var fbPeak = document.getElementById('cafFbPeak'), fbPS = document.getElementById('cafFbPeakSub');
+  if (fbPeak) fbPeak.textContent = pk ? cafFmtH(pk.h) : '—';
+  if (fbPS)   fbPS.textContent   = pk ? 'score ' + pk.score : 'no window';
+  var fbCr = document.getElementById('cafFbCrash'), fbCS = document.getElementById('cafFbCrashSub');
+  if (fbCr) fbCr.textContent = cr ? cafFmtH(cr.h) : '—';
+  if (fbCS) fbCS.textContent = cr ? 'drops to ' + cr.low : 'none predicted';
+  var fbCut = document.getElementById('cafFbCutoff'), fbCuS = document.getElementById('cafFbCutoffSub');
+  if (fbCut) fbCut.textContent = cafFmtH(ct);
+  if (fbCuS) fbCuS.textContent = '30 mg by ' + cafFmtH(cafBedHour);
+}
+
+function cafRenderTiming(logs) {
+  if (!cafCurveCache) return;
+  var curve = cafCurveCache.curve;
+  var pk = cafFindPeakWindow(curve), cr = cafFindCrash(curve), ct = cafCoffeeCutoff();
+  var grid = document.getElementById('cafTimingGrid');
+  if (!grid) return;
+  grid.innerHTML =
+    '<div class="caf-tile"><span class="caf-tile-lbl">Most productive</span><div class="caf-tile-val" style="color:#6BE3A4">'+(pk?cafFmtH(pk.h):'—')+'</div><div class="caf-tile-sub">'+(pk?'≈ 2h window · score '+pk.score:'Keep going')+'</div></div>'+
+    '<div class="caf-tile"><span class="caf-tile-lbl">You\'ll crash</span><div class="caf-tile-val" style="color:'+(cr?'#FF6B6B':'var(--text-tertiary)')+'">'+(cr?cafFmtH(cr.h):'None')+'</div><div class="caf-tile-sub">'+(cr?'drops to '+cr.low+' (−'+cr.drop+' pts)':'curve stays smooth')+'</div></div>'+
+    '<div class="caf-tile"><span class="caf-tile-lbl">Coffee cutoff</span><div class="caf-tile-val" style="color:#C9A36B">'+cafFmtH(ct)+'</div><div class="caf-tile-sub">30 mg by '+cafFmtH(cafBedHour)+'</div></div>';
+  var tips = cafBuildTips(logs);
+  var tipsEl = document.getElementById('cafTips');
+  if (tipsEl) tipsEl.innerHTML = tips.map(function(t){ return '<div class="caf-tip"><div class="caf-tip-dot"></div><span class="caf-tip-text">'+t+'</span></div>'; }).join('');
+}
+
+function cafBuildTips(logs) {
+  var tips = [], ct = cafCoffeeCutoff();
+  var total = logs.reduce(function(s,l){ return s+l.mg; }, 0);
+  var first = logs.length ? new Date(logs[0].ts) : null;
+  var lim = cafDailyLimit();
+  if (first && first.getHours() >= 10)
+    tips.push('Front-load your caffeine — first dose within 90 min of waking (around '+cafFmtH(cafWakeHour+1.5)+') maximises absorption with your morning cortisol peak.');
+  else
+    tips.push('Good timing — your first caffeine is inside the morning cortisol window for best effect.');
+  tips.push('Your cutoff today is '+cafFmtH(ct)+'. A drink after that leaves >30 mg active at '+cafFmtH(cafBedHour)+' and can delay sleep onset.');
+  tips.push('Caffeine is mildly diuretic — add ≈200 ml water per 100 mg consumed to stay hydrated.');
+  tips.push('A 10-min walk in natural light during a predicted dip restores alertness without extra caffeine.');
+  if (cafRecoveryScore !== null && cafRecoveryScore < 34)
+    tips.push('Your Whoop recovery is very low ('+Math.round(cafRecoveryScore)+'%). Consider capping intake at 200 mg today.');
+  if (cafWeightKg)
+    tips.push('Your personalised target is ≈ '+Math.round(cafWeightKg*3)+' mg/day (3 mg/kg for '+cafWeightKg.toFixed(0)+' kg). Above '+lim+' mg today you\'ll see diminishing returns.');
+  return tips;
+}
+
+function cafRenderToday(logs) {
+  var el = document.getElementById('cafTodayCard');
+  if (!el) return;
+  var total = logs.reduce(function(s,l){ return s+l.mg; }, 0);
+  var lim = cafDailyLimit(), pct = Math.min(total/lim, 1);
+  var barCol = pct < 0.6 ? '#6BE3A4' : pct < 0.85 ? '#F2C063' : '#FF6B6B';
+  var active = cafTotalMgAt(logs, Date.now());
+  var note = '';
+  if (cafRecoveryScore !== null && cafRecoveryScore < 34)
+    note = 'Your Whoop recovery is in the red — ceiling lowered to 200 mg. Prioritise rest over stimulation today.';
+  else if (cafRecoveryScore !== null && cafRecoveryScore < 67)
+    note = 'Moderate Whoop recovery — limit set to 300 mg. Front-load morning, skip anything after '+cafFmtH(cafCoffeeCutoff())+'.';
+  else if (cafWeightKg)
+    note = 'Based on your weight ('+cafWeightKg.toFixed(0)+' kg), optimal dose is ≈ '+Math.round(cafWeightKg*3)+' mg for cognitive benefit.';
+  else
+    note = 'FDA guideline is 400 mg/day for healthy adults. Track your logs here to stay within your personal range.';
+  el.innerHTML =
+    '<span class="caf-section-lbl">Today</span>'+
+    '<div class="caf-today-header">'+
+      '<span class="caf-today-mg" style="color:'+barCol+'">'+Math.round(total)+'<span style="font-size:15px;font-weight:500;color:var(--text-tertiary);margin-left:2px;">mg</span></span>'+
+      '<span class="caf-today-limit">of '+lim+' mg limit</span>'+
+    '</div>'+
+    '<div class="caf-bar-wrap"><div class="caf-bar-fill" style="width:'+(pct*100).toFixed(1)+'%;background:'+barCol+';"></div></div>'+
+    '<div class="caf-active-now">⚡ '+Math.round(active)+' mg active in your system right now</div>'+
+    '<div class="caf-today-note">'+note+'</div>';
+}
+
+function cafRenderDrinkGrid(query) {
+  var grid = document.getElementById('cafDrinkGrid');
+  if (!grid) return;
+  var all = CAF_DRINKS.concat(cafGetCustom());
+  var q = (query || '').toLowerCase().trim();
+  var shown = q ? all.filter(function(d){ return d.name.toLowerCase().includes(q)||(d.emoji||'').includes(q); }) : all;
+  if (!shown.length) { grid.innerHTML = '<div class="caf-empty" style="grid-column:1/-1;">No drinks match "'+query+'"</div>'; return; }
+  grid.innerHTML = shown.map(function(d,i){
+    return '<button class="caf-drink-btn" data-idx="'+i+'" data-name="'+cafEscHtml(d.name)+'" data-mg="'+d.mg+'" data-emoji="'+(d.emoji||'☕')+'">'+
+      '<span class="caf-drink-em">'+(d.emoji||'☕')+'</span>'+
+      '<span class="caf-drink-nm">'+cafEscHtml(d.name)+'</span>'+
+      '<span class="caf-drink-mg">'+d.mg+' mg</span>'+
+    '</button>';
+  }).join('');
+}
+
+function cafRenderLoggedToday(logs) {
+  var el = document.getElementById('cafLoggedList');
+  if (!el) return;
+  if (!logs.length) { el.innerHTML = '<div class="caf-empty">Nothing logged yet today.</div>'; return; }
+  el.innerHTML = logs.slice().reverse().map(function(log){
+    var t = new Date(log.ts);
+    var clearMs = t.getTime() + (CAF_PEAK_DELAY + CAF_HALF_LIFE * Math.log2(log.mg / 10)) * 3600000;
+    var clearH  = new Date(clearMs);
+    var timeStr = t.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    var meta = 'Logged '+timeStr+' · Peak '+cafFmtH(t.getHours()+t.getMinutes()/60+CAF_PEAK_DELAY)+
+      ' · Half-gone '+cafFmtH(t.getHours()+t.getMinutes()/60+CAF_PEAK_DELAY+CAF_HALF_LIFE)+
+      (log.mg>=10?' · Cleared ~'+clearH.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}):'');
+    return '<div class="caf-log-item">'+
+      '<span class="caf-log-em">'+(log.emoji||'☕')+'</span>'+
+      '<div class="caf-log-info"><div class="caf-log-name">'+cafEscHtml(log.name)+'</div><div class="caf-log-meta">'+meta+'</div></div>'+
+      '<span class="caf-log-mg">'+log.mg+' mg</span>'+
+      '<button class="caf-log-del" data-id="'+log.id+'" title="Delete">×</button>'+
+    '</div>';
+  }).join('');
+}
+
+function cafEscHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function cafRerender() {
+  var logs = cafGetTodayLogs();
+  cafRenderHero(logs);
+  cafRenderTiming(logs);
+  cafRenderToday(logs);
+  cafRenderLoggedToday(logs);
+}
+
+function cafLogDrink(name, mg, emoji) {
+  var all = cafGetLogs();
+  all.push({ id: cafNewId(), name: name, mg: mg, emoji: emoji, ts: new Date().toISOString(), date: cafTodayStr() });
+  cafSaveLogs(all);
+  cafRerender();
+}
+
+function cafDeleteLog(id) {
+  cafSaveLogs(cafGetLogs().filter(function(l){ return l.id !== id; }));
+  cafRerender();
+}
+
+function cafReadWeightKg() {
+  try {
+    var entries = JSON.parse(localStorage.getItem('po_coach_weights') || '[]');
+    if (!entries.length) return null;
+    var latest = entries[entries.length - 1];
+    var state  = JSON.parse(localStorage.getItem('po_coach_state') || '{}');
+    var units  = state.units || 'kg';
+    return units === 'lb' ? latest.weight * 0.453592 : latest.weight;
+  } catch { return null; }
+}
+
+function cafSyncFromShared() {
+  if (typeof whoopCache !== 'undefined') {
+    var rec = whoopCache.recovery;
+    if (rec && rec.score && rec.score.recovery_score != null) cafRecoveryScore = rec.score.recovery_score;
+    var sleep0 = whoopCache.sleep && whoopCache.sleep[0];
+    if (sleep0 && sleep0.end) cafWakeHour = new Date(sleep0.end).getHours() + new Date(sleep0.end).getMinutes() / 60;
+    if (sleep0 && sleep0.start) {
+      var bh = new Date(sleep0.start).getHours() + new Date(sleep0.start).getMinutes() / 60;
+      cafBedHour = bh < 12 ? bh + 24 : bh;
+    }
+  }
+  cafWeightKg = cafReadWeightKg();
+}
+
+function cafBindEvents() {
+  var dg = document.getElementById('cafDrinkGrid');
+  if (dg) dg.addEventListener('click', function(e){
+    var btn = e.target.closest('.caf-drink-btn');
+    if (!btn) return;
+    cafLogDrink(btn.dataset.name, parseInt(btn.dataset.mg, 10), btn.dataset.emoji);
+  });
+  var search = document.getElementById('cafSearch');
+  if (search) search.addEventListener('input', function(){ cafRenderDrinkGrid(this.value); });
+  var customBtn = document.getElementById('cafCustomBtn');
+  if (customBtn) customBtn.addEventListener('click', function(){
+    var name = (document.getElementById('cafCustomName').value || '').trim();
+    var mg   = parseInt(document.getElementById('cafCustomMg').value, 10);
+    if (!name || !mg || mg < 1) return;
+    var custom = cafGetCustom();
+    custom.push({ name: name, mg: mg, emoji: '☕' });
+    cafSaveCustom(custom);
+    cafLogDrink(name, mg, '☕');
+    document.getElementById('cafCustomName').value = '';
+    document.getElementById('cafCustomMg').value   = '';
+    cafRenderDrinkGrid(document.getElementById('cafSearch').value);
+  });
+  ['cafCustomName','cafCustomMg'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', function(e){ if (e.key === 'Enter') document.getElementById('cafCustomBtn').click(); });
+  });
+  var ll = document.getElementById('cafLoggedList');
+  if (ll) ll.addEventListener('click', function(e){
+    var btn = e.target.closest('.caf-log-del');
+    if (btn) cafDeleteLog(btn.dataset.id);
+  });
+  var modeRow = document.getElementById('cafModeRow');
+  if (modeRow) modeRow.addEventListener('click', function(e){
+    var btn = e.target.closest('.caf-mode-btn');
+    if (!btn) return;
+    modeRow.querySelectorAll('.caf-mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    cafChartMode = btn.dataset.mode;
+    if (document.getElementById('cafChartWrap') && cafCurveCache) {
+      document.getElementById('cafChartWrap').innerHTML = cafBuildSvg(cafCurveCache.curve, cafCurveCache.base, cafChartMode);
+      cafAttachChartEvents(cafCurveCache.curve);
+    }
+  });
+}
+
+function cafHealthInit() {
+  if (cafHealthInitDone) return;
+  cafHealthInitDone = true;
+  cafSyncFromShared();
+  cafRenderDrinkGrid('');
+  cafRerender();
+  cafBindEvents();
+  setInterval(cafRerender, 60000);
+}
+
+window.cafHealthInit     = cafHealthInit;
+window.cafSyncFromShared = cafSyncFromShared;
+window.cafRerender       = cafRerender;
+</script>
+</body>
+</html>
