@@ -4066,7 +4066,7 @@ async function whoopApiFetch(endpoint, overrideUserId) {
   const userId = overrideUserId ?? currentUser?.id;
   if (!userId || !useSupabase) return null;
   try {
-    const res = await fetch('/.netlify/functions/whoop-fetch', {
+    const res = await fetch('/api/whoop-fetch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, endpoint }),
@@ -5000,7 +5000,7 @@ async function initWhoop() {
     const wasAutoRetry = !!localStorage.getItem('_whoop_retry');
     localStorage.removeItem('_whoop_retry');
     try {
-      const res  = await fetch('/.netlify/functions/whoop-callback', {
+      const res  = await fetch('/api/whoop-callback', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ code, userId: state }),

@@ -875,11 +875,11 @@ async function fetchWhoopData() {
   if (!user) return;
   try {
     var [recData, sleepData] = await Promise.all([
-      fetch('/.netlify/functions/whoop-fetch', {
+      fetch('/api/whoop-fetch', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ userId: user.id, endpoint: 'recovery?limit=1' })
       }).then(function(r){ return r.json(); }),
-      fetch('/.netlify/functions/whoop-fetch', {
+      fetch('/api/whoop-fetch', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ userId: user.id, endpoint: 'sleep?limit=1' })
       }).then(function(r){ return r.json(); })
