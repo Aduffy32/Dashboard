@@ -1,4 +1,4 @@
-const REDIRECT_URI = 'https://ajduffdash.netlify.app';
+const REDIRECT_URI = 'https://dashboard-zeta-brown-51.vercel.app';
 const WHOOP_AUTH   = 'https://api.prod.whoop.com/oauth/oauth2/auth';
 
 export default async function handler(req, res) {
