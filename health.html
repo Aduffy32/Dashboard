@@ -198,8 +198,16 @@
 .caf-empty { font-size: 12px; color: var(--text-tertiary); font-style: italic; padding: 14px 0; text-align: center; }
 .caf-section-lbl { font-family: ui-monospace,monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 10px; display: block; }
 </style>
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="PO Coach" />
+<meta name="theme-color" content="#050506" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
 </head>
-<body>
+<body class="grain-overlay">
 <!-- Auth overlay -->
 <div class="auth-overlay hidden" id="authOverlay">
   <div class="auth-card">

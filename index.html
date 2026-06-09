@@ -6,8 +6,28 @@
 <title>My Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="shared.css">
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="PO Coach" />
+<meta name="theme-color" content="#050506" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<style>
+@keyframes cardSlideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.daily-reminders { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.daily-reminders-label { font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); margin-right: 4px; flex-shrink: 0; }
+.reminder-chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(242,192,99,0.30); background: rgba(242,192,99,0.08); color: var(--text-primary); font-size: 12px; font-weight: 600; text-decoration: none; transition: border-color 0.2s, background 0.2s; cursor: pointer; }
+.reminder-chip:hover { border-color: rgba(242,192,99,0.55); background: rgba(242,192,99,0.14); }
+.reminder-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: #F2C063; box-shadow: 0 0 7px rgba(242,192,99,0.7); flex-shrink: 0; }
+.reminder-chip-arrow { color: var(--text-tertiary); font-size: 11px; }
+</style>
 </head>
-<body>
+<body class="grain-overlay">
 <!-- Auth overlay -->
 <div class="auth-overlay hidden" id="authOverlay">
   <div class="auth-card">
@@ -77,11 +97,13 @@
     </div>
   </div>
 
+  <div id="dailyReminders"></div>
+
   <!-- Water summary widget -->
-  <div class="gm-card hlth-water-widget" id="waterWidget"></div>
+  <div class="gm-card hlth-water-widget" id="waterWidget" style="animation: cardSlideIn 0.45s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.04s;"></div>
 
   <!-- Whoop overview widget -->
-  <div class="gm-card" id="whoopWidget" style="padding:18px 20px;margin-bottom:16px;"></div>
+  <div class="gm-card" id="whoopWidget" style="padding:18px 20px;margin-bottom:16px; animation: cardSlideIn 0.45s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.08s;"></div>
 
 
 </div>
@@ -134,5 +156,53 @@
 </div>
 
 <script src="shared.js"></script>
+<script>
+function renderDailyReminders() {
+  const el = document.getElementById('dailyReminders');
+  if (!el) return;
+
+  const now = new Date();
+  const dateKey = now.getHours() < 6
+    ? new Date(now - 864e5).toISOString().slice(0, 10)
+    : now.toISOString().slice(0, 10);
+
+  const weights = JSON.parse(localStorage.getItem('po_coach_weights') || '[]');
+  const weightLogged = weights.some(e => e.dateKey === dateKey);
+
+  const workoutDone = JSON.parse(localStorage.getItem('po_coach_workout_done') || '{}');
+  const gymLogged = !!workoutDone[dateKey];
+
+  const reminders = [];
+  if (!weightLogged) reminders.push({ icon: '⚖️', text: "Log today's weight", href: 'gym.html' });
+  if (!gymLogged)    reminders.push({ icon: '🏋️', text: "Log today's workout", href: 'gym.html' });
+
+  if (!reminders.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `<div class="daily-reminders">
+  <span class="daily-reminders-label">TODAY</span>
+  ${reminders.map(r => `<a class="reminder-chip" href="${r.href}"><span class="reminder-chip-dot"></span>${r.icon} ${r.text}<span class="reminder-chip-arrow">›</span></a>`).join('')}
+</div>`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderDailyReminders();
+
+  const _origWater = window.waterWidgetRender;
+  if (typeof _origWater === 'function') {
+    window.waterWidgetRender = function() {
+      _origWater.apply(this, arguments);
+      renderDailyReminders();
+    };
+  }
+
+  const _origWhoop = window.renderWhoopHomeWidget;
+  if (typeof _origWhoop === 'function') {
+    window.renderWhoopHomeWidget = function() {
+      _origWhoop.apply(this, arguments);
+      renderDailyReminders();
+    };
+  }
+});
+</script>
 </body>
 </html>
