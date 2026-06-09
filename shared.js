@@ -4984,8 +4984,6 @@ async function initWhoop() {
   if (code && state) {
     history.replaceState(null, '', location.pathname);
     switchTab('health');
-    const wasAutoRetry = !!localStorage.getItem('_whoop_retry');
-    localStorage.removeItem('_whoop_retry');
     try {
       const res  = await fetch('/api/whoop-callback', {
         method:  'POST',
@@ -4995,11 +4993,9 @@ async function initWhoop() {
       const data = await res.json();
       if (!data.success) {
         whoopCache.connectError = true;
-        // Code expired because a Google re-auth happened in between. Restart Whoop
-        // auth now that we're freshly signed in — but only once to prevent a loop.
-        if (data.error === 'code_expired' && !wasAutoRetry) {
-          localStorage.setItem('_whoop_retry', '1');
-          whoopStartAuth();
+        if (data.error === 'code_expired') {
+          whoopCache.connectError = true;
+          renderWhoopWidgets();
           return;
         }
       }
