@@ -533,7 +533,17 @@ async function initAuth() {
     await db.auth.signOut();
   });
 
+  const { data: { session: existingSession } } = await db.auth.getSession();
+  if (existingSession?.user) {
+    currentUser = existingSession.user;
+    setSyncing(true);
+    try { await loadAllFromSupabase(); } catch (_) {}
+    setSyncing(false);
+    bootApp(existingSession.user);
+  }
+
   db.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'INITIAL_SESSION') return; // already handled by getSession()
     if (session?.user) {
       if (currentUser && currentUser.id === session.user.id) return; // already booted
       currentUser = session.user;
@@ -541,7 +551,7 @@ async function initAuth() {
       try { await loadAllFromSupabase(); } catch (_) {}
       setSyncing(false);
       bootApp(session.user);
-    } else {
+    } else if (event === 'SIGNED_OUT') {
       // Signed out — reset
       currentUser = null;
       Object.keys(cache).forEach(k => delete cache[k]);
