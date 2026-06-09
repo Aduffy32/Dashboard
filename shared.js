@@ -6010,4 +6010,53 @@ renderGym = function() {
   }
 })();
 
+function initMountainsBg() {
+  const mountains = document.createElement('div');
+  mountains.className = 'bg-mountains';
+  mountains.setAttribute('aria-hidden', 'true');
+  mountains.innerHTML = `<svg viewBox="0 0 1600 420" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="bg-mt-far" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0d1a17" stop-opacity="0"/>
+        <stop offset="55%" stop-color="#0d1a17" stop-opacity=".55"/>
+        <stop offset="100%" stop-color="#0d1a17" stop-opacity=".95"/>
+      </linearGradient>
+      <linearGradient id="bg-mt-near" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#050a09" stop-opacity=".4"/>
+        <stop offset="60%" stop-color="#050a09" stop-opacity=".95"/>
+        <stop offset="100%" stop-color="#050a09" stop-opacity="1"/>
+      </linearGradient>
+    </defs>
+    <path d="M0,300 L120,230 L210,260 L320,180 L430,220 L560,150 L680,210 L820,170 L960,220 L1100,180 L1240,240 L1380,200 L1500,250 L1600,220 L1600,420 L0,420 Z" fill="url(#bg-mt-far)"/>
+    <path d="M0,360 L100,320 L220,340 L340,290 L460,330 L590,300 L720,340 L860,310 L1000,350 L1140,310 L1280,355 L1420,320 L1540,360 L1600,340 L1600,420 L0,420 Z" fill="url(#bg-mt-near)"/>
+  </svg>`;
+
+  const mist = document.createElement('div');
+  mist.className = 'bg-mist';
+  mist.setAttribute('aria-hidden', 'true');
+
+  const particles = document.createElement('div');
+  particles.className = 'bg-particles';
+  particles.setAttribute('aria-hidden', 'true');
+  const N = window.innerWidth < 640 ? 10 : 18;
+  for (let i = 0; i < N; i++) {
+    const s = document.createElement('span');
+    const dur = 18 + Math.random() * 22;
+    s.style.left = (Math.random() * 100) + '%';
+    s.style.top = (60 + Math.random() * 40) + 'vh';
+    const size = 1 + Math.random() * 1.2;
+    s.style.width = s.style.height = size + 'px';
+    s.style.animationDuration = dur + 's';
+    s.style.animationDelay = (-Math.random() * dur) + 's';
+    s.style.setProperty('--dx', (Math.random() * 30 - 15) + 'px');
+    s.style.setProperty('--dy', (-(60 + Math.random() * 50)) + 'vh');
+    particles.appendChild(s);
+  }
+
+  document.body.insertBefore(particles, document.body.firstChild);
+  document.body.insertBefore(mist, document.body.firstChild);
+  document.body.insertBefore(mountains, document.body.firstChild);
+}
+
+initMountainsBg();
 initAuth();

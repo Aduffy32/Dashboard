@@ -28,8 +28,9 @@ body::before {
   content: '';
   position: fixed; inset: 0; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(ellipse at 82% 14%, rgba(224,118,88,0.16) 0%, transparent 50%),
-    radial-gradient(ellipse at 18% 90%, rgba(180,180,200,0.06) 0%, transparent 50%);
+    radial-gradient(60% 50% at 50% 52%, rgba(110,231,183,0.20) 0%, rgba(110,231,183,0.07) 30%, rgba(110,231,183,0) 65%),
+    radial-gradient(28% 22% at 50% 50%, rgba(255,226,181,0.07) 0%, rgba(255,226,181,0) 70%),
+    radial-gradient(120% 80% at 50% 100%, rgba(14,38,30,0.65) 0%, rgba(4,6,10,0) 70%);
   filter: blur(40px);
   animation: wash-drift 36s ease-in-out alternate infinite;
 }
@@ -42,6 +43,34 @@ body::after {
   0%   { transform: translate(0,0) scale(1); }
   100% { transform: translate(20px,16px) scale(1.03); }
 }
+
+/* ── Mountains + Particles background ───────────────── */
+.bg-mountains {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 0;
+  height: 38vh; min-height: 220px; pointer-events: none;
+}
+.bg-mountains svg { width: 100%; height: 100%; display: block; }
+.bg-mist {
+  position: fixed; left: 0; right: 0; bottom: 28vh; height: 22vh;
+  z-index: 0; pointer-events: none;
+  background: linear-gradient(to top, rgba(4,6,10,0) 0%, rgba(110,231,183,0.05) 40%, rgba(4,6,10,0) 100%);
+  filter: blur(8px);
+}
+.bg-particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.bg-particles span {
+  position: absolute;
+  background: rgba(233,239,233,0.55);
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(167,243,208,0.35);
+  animation: bg-drift linear infinite;
+}
+@keyframes bg-drift {
+  0%   { transform: translate3d(0,0,0); opacity: 0; }
+  8%   { opacity: 0.7; }
+  92%  { opacity: 0.5; }
+  100% { transform: translate3d(var(--dx,12px), var(--dy,-100vh), 0); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .bg-particles span { animation: none; } }
 
 /* ── Auth overlay ──────────────────────────────────────── */
 .auth-overlay {
