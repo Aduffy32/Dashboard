@@ -1,5 +1,5 @@
 const SUPABASE_URL = 'https://vffdvrfppadopcwhzjug.supabase.co';
-const REDIRECT_URI = 'https://dashboard-zeta-brown-51.vercel.app';
+const REDIRECT_URI = 'https://dashboard-zeta-brown-51.vercel.app/whoop-callback.html';
 
 async function supabaseUpsert(serviceKey, data) {
   console.log(`[whoop-callback] upserting tokens for user_id=${data.user_id}`);
