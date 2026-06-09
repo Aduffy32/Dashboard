@@ -8,18 +8,23 @@
   window.cafDB   = createClient(URL, KEY);
   window.cafUser = null;
 
-  window.cafDB.auth.onAuthStateChange(function (event, session) {
+  window.cafDB.auth.getSession().then(function (result) {
+    var session = result.data && result.data.session;
     if (session && session.user) {
       window.cafUser = session.user;
       var app = document.getElementById('appContainer');
       if (app) app.classList.add('visible');
       window.dispatchEvent(new CustomEvent('caf-ready', { detail: session.user }));
     } else {
-      window.cafUser = null;
-      if (!sessionStorage.getItem('_caf_redir')) {
-        sessionStorage.setItem('_caf_redir', '1');
+      window.location.replace('index.html');
+      return;
+    }
+
+    window.cafDB.auth.onAuthStateChange(function (event, session) {
+      if (event === 'SIGNED_OUT') {
+        window.cafUser = null;
         window.location.replace('index.html');
       }
-    }
+    });
   });
 })();
