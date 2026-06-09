@@ -4966,7 +4966,7 @@ function renderWhoopGymHistory() {
 // ── Whoop auth / connect / disconnect ──────────────────────
 function whoopStartAuth() {
   if (!currentUser) return;
-  window.location.href = `/.netlify/functions/whoop-auth?userId=${encodeURIComponent(currentUser.id)}`;
+  window.location.href = `/api/whoop-auth?userId=${encodeURIComponent(currentUser.id)}`;
 }
 
 async function whoopDisconnect() {
