@@ -3877,8 +3877,7 @@ function waterRender() {
 
   waterGoalRender();
 
-  const undoB = document.getElementById('hlthWaterUndoBtn');
-  if (undoB) undoB.disabled = !data.entries.length;
+  document.querySelectorAll('.hlth-water-undo-btn').forEach(b => { b.disabled = !data.entries.length; });
 
   waterHistoryRender();
 }
@@ -3965,19 +3964,16 @@ function initWater() {
   });
   if (customIn) customIn.addEventListener('keydown', e => { if (e.key === 'Enter') addBtn?.click(); });
 
-  const undoBtn = document.getElementById('hlthWaterUndoBtn');
-  if (undoBtn) {
-    undoBtn.addEventListener('click', () => {
-      const data = waterLoad();
-      if (!data.entries.length) return;
-      data.entries.pop();
-      waterSave(data);
-      waterRender();
-      waterWidgetRender();
-    });
-  }
-
   waterRender();
+}
+
+function waterUndo() {
+  const data = waterLoad();
+  if (!data.entries.length) return;
+  data.entries.pop();
+  waterSave(data);
+  waterRender();
+  waterWidgetRender();
 }
 
 // ── Home tab water widget render ───────────────────────────
@@ -4630,7 +4626,7 @@ function renderWhoopHealthSection() {
     <div class="hlth-water-quick" style="padding-top:12px;border-top:1px dashed rgba(255,255,255,0.08);">
       <span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#5BB8F5;white-space:nowrap;">+ WATER</span>
       ${[150, 250, 330, 500, 750].map(v => `<button class="hlth-water-quick-chip" style="border:1px dashed #5BB8F5;color:#5BB8F5;" onclick="waterAddAmount(${v})">${v}ml</button>`).join('')}
-      <button class="hlth-water-undo-btn" id="hlthWaterUndoBtn" title="Undo last drink">↩</button>
+      <button class="hlth-water-undo-btn" onclick="waterUndo()" title="Undo last drink">↩</button>
     </div>
   </div>`;
 }
@@ -4878,7 +4874,7 @@ function renderHydrationPanel() {
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;"><span style="font-family:ui-monospace,monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:${S};">SUPPLEMENT MATRIX · ${sTkC}/${sTtC}</span><span style="font-family:ui-monospace,monospace;font-size:9px;color:var(--text-tertiary);">NEXT ${nxS}</span></div>
     <div class="hlth-supp-matrix-grid" style="padding:0 2px 6px;border-bottom:1px dashed rgba(255,255,255,0.08);margin-bottom:2px;"><span></span><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tertiary);display:block;text-align:center;">AM</span><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tertiary);display:block;text-align:center;">LUNCH</span><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tertiary);display:block;text-align:center;">PM</span></div>
     ${sCfg.supplements.length > 0 ? sRows : '<div style="font-size:13px;color:var(--text-tertiary);padding:10px 0;">No supplements configured — add some via ⚙️</div>'}
-    <div class="hlth-water-quick" style="padding-top:12px;border-top:1px dashed rgba(255,255,255,0.08);"><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:${B};white-space:nowrap;">+ WATER</span>${[150,250,330,500,750].map(v=>`<button class="hlth-water-quick-chip" style="border:1px dashed ${B};color:${B};" onclick="waterAddAmount(${v})">${v}ml</button>`).join('')}<button class="hlth-water-undo-btn" id="hlthWaterUndoBtn" title="Undo last drink">↩</button></div>
+    <div class="hlth-water-quick" style="padding-top:12px;border-top:1px dashed rgba(255,255,255,0.08);"><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:${B};white-space:nowrap;">+ WATER</span>${[150,250,330,500,750].map(v=>`<button class="hlth-water-quick-chip" style="border:1px dashed ${B};color:${B};" onclick="waterAddAmount(${v})">${v}ml</button>`).join('')}<button class="hlth-water-undo-btn" onclick="waterUndo()" title="Undo last drink">↩</button></div>
     <div class="hlth-water-history" id="hlthWaterHistory"></div>
   </div>
   `;
