@@ -515,19 +515,6 @@ async function initAuth() {
     return;
   }
 
-  // Stash Whoop OAuth params before Supabase sees ?code= and tries to exchange it via PKCE.
-  // Only intercept when state starts with 'whoop_' — Supabase's own PKCE callbacks never do.
-  // Use localStorage (not sessionStorage) so the code survives any additional auth redirects.
-  const _wp = new URLSearchParams(location.search);
-  if (_wp.get('code') && _wp.get('state')?.startsWith('whoop_')) {
-    localStorage.setItem('_whoop_pending', JSON.stringify({
-      code:   _wp.get('code'),
-      userId: _wp.get('state').slice('whoop_'.length),
-      ts:     Date.now(),
-    }));
-    history.replaceState(null, '', location.pathname);
-  }
-
   const { createClient } = supabase;
   db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 

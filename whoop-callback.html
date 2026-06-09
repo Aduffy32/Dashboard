@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connecting Whoop…</title>
+  <link rel="stylesheet" href="shared.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .callback-msg {
+      text-align: center;
+      font-size: 16px;
+      color: var(--text-secondary, #ccc);
+    }
+  </style>
+</head>
+<body>
+  <div class="callback-msg">Connecting Whoop…</div>
+  <script>
+    (async function () {
+      const params = new URLSearchParams(window.location.search);
+      const code   = params.get('code');
+      const state  = params.get('state');
+
+      if (!code || !state || !state.startsWith('whoop_')) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const userId = state.slice('whoop_'.length);
+
+      try {
+        const res  = await fetch('/api/whoop-callback', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ code, userId }),
+        });
+        const data = await res.json();
+        if (data.success === true) {
+          window.location.href = 'health.html';
+        } else {
+          window.location.href = 'health.html?whoop_error=true';
+        }
+      } catch (_) {
+        window.location.href = 'health.html?whoop_error=true';
+      }
+    })();
+  </script>
+</body>
+</html>
