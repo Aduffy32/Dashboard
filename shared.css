@@ -12,6 +12,9 @@
   --accent-money: #C47FE8;
   --accent-habit: #6BE3A4;
   --accent-sleep: #9AA8E8;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-soft: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -245,6 +248,16 @@ body::after {
   background: rgba(255,255,255,0.04); border-radius: 16px; padding: 22px;
   backdrop-filter: blur(24px) saturate(1.2);
   box-shadow: 0 12px 40px rgba(0,0,0,0.45); margin-bottom: 16px; transition: background 0.5s ease;
+  will-change: transform; position: relative; overflow: hidden;
+}
+.gm-card:not(.gm-card-no-hover):hover {
+  border-color: rgba(255,255,255,0.10);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
+  transform: translateY(-1px);
+  transition:
+    transform 240ms var(--ease-out-expo, cubic-bezier(0.16,1,0.3,1)),
+    box-shadow 240ms var(--ease-out-expo, cubic-bezier(0.16,1,0.3,1)),
+    border-color 180ms ease;
 }
 .gm-card.gm-all-done {
   background: radial-gradient(ellipse at 50% 0%, rgba(107,227,164,0.08), transparent 60%), rgba(255,255,255,0.04);
@@ -1928,8 +1941,57 @@ select.fin-input option { background: #111113; color: #FAFAFA; }
 .gym-kbd-overlay.visible { display: block; }
 .gym-kbd-row { display: flex; justify-content: space-between; gap: 16px; color: var(--text-secondary); padding: 3px 0; }
 .gym-kbd-key { color: var(--text-tertiary); font-weight: 700; }
+/* ── Ambient card art ──────────────────────────────────── */
+@keyframes art-aurora-drift {
+  0%   { transform: scale(1) rotate(0deg); }
+  100% { transform: scale(1.08) rotate(8deg); }
+}
+@keyframes art-grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 220px 0, -220px 0; }
+}
+@keyframes art-dots-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.card-art {
+  position: absolute; inset: -10%; pointer-events: none; z-index: 0;
+  border-radius: inherit; overflow: hidden;
+  transition: transform 240ms var(--ease-out-soft, cubic-bezier(0.32,0.72,0,1));
+  will-change: transform;
+}
+.card-art--aurora {
+  background:
+    radial-gradient(ellipse 65% 50% at 30% 35%, rgba(107,227,164,0.45), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 75% 70%, rgba(31,77,61,0.75), transparent 65%),
+    radial-gradient(ellipse 40% 40% at 60% 30%, rgba(242,192,99,0.08), transparent 70%),
+    linear-gradient(180deg, #052e22, #000);
+  filter: saturate(1.1);
+  animation: art-aurora-drift 28s ease-in-out infinite alternate;
+}
+.card-art--grid {
+  background:
+    repeating-linear-gradient(45deg, transparent 0 22px, rgba(107,227,164,0.04) 22px 23px),
+    repeating-linear-gradient(-45deg, transparent 0 22px, rgba(255,255,255,0.02) 22px 23px),
+    linear-gradient(135deg, #050a08, #000);
+  animation: art-grid-drift 40s linear infinite;
+}
+.card-art--dots {
+  background:
+    radial-gradient(circle, rgba(107,227,164,0.35) 1px, transparent 1.5px),
+    radial-gradient(ellipse 60% 80% at 50% 50%, rgba(107,227,164,0.06), transparent 65%),
+    linear-gradient(180deg, #04130d, #000);
+  background-size: 16px 16px, 100% 100%, 100% 100%;
+  animation: art-dots-rotate 120s linear infinite;
+}
+
 /* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   .gca-log-btn, .gym-toast, .gym-past-chev, .gym-settings-chev, .gym-split-current-pill,
   .gym-split-mode-btn, .gym-split-custom-btn { transition: none; }
+  .card-art--aurora,
+  .card-art--grid,
+  .card-art--dots { animation: none !important; }
+  .gm-card:not(.gm-card-no-hover):hover { transform: none; }
 }
