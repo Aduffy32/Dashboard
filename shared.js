@@ -2470,14 +2470,16 @@ function photosLoad() {
 function photosOpen() {
   const overlay = document.getElementById('photosOverlay');
   if (!overlay) return;
-  document.getElementById('page-gym')?.classList.add('has-overlay');
+  overlay.closest('.tab-page')?.classList.add('has-overlay');
   overlay.classList.add('open');
   photosRender();
 }
 
 function photosClose() {
-  document.getElementById('photosOverlay')?.classList.remove('open');
-  document.getElementById('page-gym')?.classList.remove('has-overlay');
+  const overlay = document.getElementById('photosOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  overlay.closest('.tab-page')?.classList.remove('has-overlay');
   document.getElementById('photoViewer')?.classList.remove('open');
   document.getElementById('photoCompare')?.classList.remove('open');
 }
@@ -4257,6 +4259,36 @@ function renderWhoopWidgets() {
   if (typeof window.renderEnergyBanner === 'function') window.renderEnergyBanner();
   if (typeof window.renderTasksSpine === 'function') window.renderTasksSpine();
   if (typeof window.cafSyncFromShared === 'function') window.cafSyncFromShared();
+  writeHealthBridge();
+}
+
+function writeHealthBridge() {
+  try {
+    const rec    = whoopCache.recovery;
+    const sleep0 = whoopCache.sleep?.[0];
+    const cycle  = whoopCache.cycle;
+
+    const recoveryScore = rec?.score?.recovery_score ?? null;
+    const hrv           = rec?.score?.hrv_rmssd_milli != null ? Math.round(rec.score.hrv_rmssd_milli) : null;
+    const rhr           = rec?.score?.resting_heart_rate != null ? Math.round(rec.score.resting_heart_rate) : null;
+    const sleepPerf     = rec?.score?.sleep_performance_percentage ?? null;
+    const sleepHours    = sleep0
+      ? (() => { try { return (new Date(sleep0.end) - new Date(sleep0.start)) / 3600000; } catch { return null; } })()
+      : null;
+    const strain        = cycle?.score?.strain ?? null;
+
+    const bridge = {
+      connected:    !!whoopConnected,
+      recovery:     recoveryScore,
+      hrv:          hrv,
+      rhr:          rhr,
+      sleepPerf:    sleepPerf,
+      sleepHours:   sleepHours != null ? Math.round(sleepHours * 10) / 10 : null,
+      strain:       strain,
+      updatedAt:    Date.now(),
+    };
+    localStorage.setItem('patron_health_v1', JSON.stringify(bridge));
+  } catch (e) { /* non-fatal */ }
 }
 
 // ── Home tab Whoop widget ───────────────────────────────────
@@ -4949,6 +4981,7 @@ function renderHydrationPanel() {
       📷 <span>Progress Photos</span><span class="wt-photos-arr">›</span>
     </button>
   </div>
+  <div id="suppRecoveryBanner" style="padding:10px 14px;margin-bottom:10px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);display:none;"></div>
   <div class="gm-card" style="padding:12px 14px 14px;margin-bottom:10px;border:1px solid rgba(107,227,164,0.2);">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;"><span style="font-family:ui-monospace,monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:${S};">SUPPLEMENT MATRIX · ${sTkC}/${sTtC}</span><span style="font-family:ui-monospace,monospace;font-size:9px;color:var(--text-tertiary);">NEXT ${nxS}</span></div>
     <div class="hlth-supp-matrix-grid" style="padding:0 2px 6px;border-bottom:1px dashed rgba(255,255,255,0.08);margin-bottom:2px;"><span></span><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tertiary);display:block;text-align:center;">AM</span><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tertiary);display:block;text-align:center;">LUNCH</span><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tertiary);display:block;text-align:center;">PM</span></div>
@@ -4958,6 +4991,42 @@ function renderHydrationPanel() {
   </div>
   `;
   wtInit();
+  suppRecoveryBanner();
+}
+
+function suppRecoveryBanner() {
+  const el = document.getElementById('suppRecoveryBanner');
+  if (!el) return;
+  try {
+    const bridge = JSON.parse(localStorage.getItem('patron_health_v1') || 'null');
+    if (!bridge || !bridge.connected) { el.style.display = 'none'; return; }
+
+    const rec = bridge.recovery;
+    const hrv = bridge.hrv;
+
+    let msg = null;
+    let color = '#6BE3A4';
+
+    if (rec != null && rec < 34) {
+      msg = '⚠️ Low recovery today (' + Math.round(rec) + '%) — prioritise magnesium glycinate and ashwagandha tonight.';
+      color = '#FF6B6B';
+    } else if (rec != null && rec < 67) {
+      msg = '⚡ Moderate recovery (' + Math.round(rec) + '%) — consider L-theanine with caffeine and omega-3 with dinner.';
+      color = '#F2C063';
+    } else if (rec != null && rec >= 67) {
+      msg = '✅ Good recovery (' + Math.round(rec) + '%) — all systems go. Stay on your usual stack.';
+      color = '#6BE3A4';
+    }
+
+    if (hrv != null && hrv < 40 && rec != null && rec >= 34) {
+      msg = (msg || '') + ' HRV is low (' + hrv + 'ms) — avoid stimulants after 2pm.';
+    }
+
+    if (!msg) { el.style.display = 'none'; return; }
+
+    el.style.display = '';
+    el.innerHTML = '<span style="font-size:12px;color:' + color + ';line-height:1.5;">' + msg + '</span>';
+  } catch (e) { el.style.display = 'none'; }
 }
 
 // ── Metric info modal ───────────────────────────────────────

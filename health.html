@@ -429,6 +429,44 @@
   </div>
 </div>
 
+<!-- Progress photos overlay -->
+<div class="gym-overlay" id="photosOverlay">
+  <div class="gym-ov-hdr">
+    <button class="gym-ov-back" id="photosBack">&#8249;</button>
+    <span class="gym-ov-title">Progress Photos</span>
+    <label class="photos-file-btn" style="flex:none;padding:7px 14px;margin-left:auto;cursor:pointer;">
+      + Add
+      <input type="file" accept="image/*" id="photosFileIn" style="display:none">
+    </label>
+  </div>
+  <div class="gym-ov-body">
+    <div class="photos-toolbar" id="photosToolbar" style="display:none">
+      <button class="photos-file-btn" id="photosCompareBtn">Compare First &amp; Last</button>
+    </div>
+    <div class="photos-grid" id="photosGrid"></div>
+  </div>
+  <div class="photo-viewer" id="photoViewer">
+    <div class="photo-viewer-hdr">
+      <button class="photo-viewer-back" id="pvBack">&#8249;</button>
+      <div class="photo-viewer-info">
+        <div class="photo-viewer-date" id="pvDate"></div>
+        <div class="photo-viewer-wt" id="pvWt"></div>
+      </div>
+      <div class="photo-viewer-acts">
+        <button class="pv-btn pv-del" id="pvDel">Delete</button>
+      </div>
+    </div>
+    <div class="photo-viewer-img"><img id="pvImg" src="" alt=""></div>
+  </div>
+  <div class="photo-compare" id="photoCompare">
+    <div class="photo-compare-hdr">
+      <button class="gym-ov-back" id="pcBack">&#8249;</button>
+      <span class="gym-ov-title" style="flex:1">Compare</span>
+    </div>
+    <div class="photo-compare-body" id="pcBody"></div>
+  </div>
+</div>
+
 <!-- Settings overlay -->
 <div class="gym-overlay supp-overlay" id="suppSettingsOverlay">
   <div class="gym-ov-hdr">

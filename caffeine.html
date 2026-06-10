@@ -432,12 +432,20 @@ function saveCustom(arr) {
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
 // ── Pharmacokinetics ───────────────────────────────────────
+function halfLifeH() {
+  var w  = readWeightKg() || 75;
+  var hl = HALF_LIFE;
+  if (w < 60)      hl *= 1.08;
+  else if (w > 90) hl *= 0.94;
+  return hl;
+}
+
 function activeMgAt(log, refMs) {
   var logMs  = new Date(log.ts).getTime();
   var h      = (refMs - logMs) / 3600000;
   if (h < 0) return 0;
   if (h < PEAK_DELAY) return log.mg * (h / PEAK_DELAY); // rising
-  return log.mg * Math.pow(0.5, (h - PEAK_DELAY) / HALF_LIFE);
+  return log.mg * Math.pow(0.5, (h - PEAK_DELAY) / halfLifeH());
 }
 
 function totalMgAt(logs, refMs) {
@@ -496,7 +504,7 @@ function dailyLimit() {
     if (recoveryScore < 34) return 200;
     if (recoveryScore < 67) return 300;
   }
-  return FDA_LIMIT;
+  return Math.max(250, Math.min(400, Math.round((readWeightKg() || 75) * 5.3 / 10) * 10));
 }
 
 // ── Format helpers ─────────────────────────────────────────
@@ -550,7 +558,7 @@ function findCrash(curve) {
 
 function coffeeCutoff() {
   // Last coffee time so that 95 mg decays to <30 mg by bedtime
-  return bedHour - PEAK_DELAY - HALF_LIFE * Math.log2(95 / 30);
+  return bedHour - PEAK_DELAY - halfLifeH() * Math.log2(95 / 30);
 }
 
 // ── Chart SVG builder ──────────────────────────────────────
@@ -790,7 +798,7 @@ function renderToday(logs) {
   el.innerHTML =
     '<div class="caf-today-header">' +
       '<span class="caf-today-mg" style="color:' + barCol + '">' + Math.round(total) + '<span style="font-size:15px;font-weight:500;color:var(--text-tertiary);margin-left:2px;">mg</span></span>' +
-      '<span class="caf-today-limit">of ' + lim + ' mg limit</span>' +
+      '<span class="caf-today-limit">' + (recoveryScore !== null && recoveryScore < 67 ? 'of ' + lim + ' mg limit' : 'Daily limit: ' + lim + ' mg (personalised)') + '</span>' +
     '</div>' +
     '<div class="caf-bar-wrap"><div class="caf-bar-fill" style="width:' + (pct*100).toFixed(1) + '%;background:' + barCol + ';"></div></div>' +
     '<div class="caf-active-now">⚡ ' + Math.round(active) + ' mg active in your system right now</div>' +
@@ -823,13 +831,13 @@ function renderLoggedToday(logs) {
   el.innerHTML = logs.slice().reverse().map(function(log){
     var t    = new Date(log.ts);
     var peakH  = t.getTime() / 3600000 + PEAK_DELAY;
-    var halfH  = t.getTime() / 3600000 + PEAK_DELAY + HALF_LIFE;
-    var clearMs = t.getTime() + (PEAK_DELAY + HALF_LIFE * Math.log2(log.mg / 10)) * 3600000;
+    var halfH  = t.getTime() / 3600000 + PEAK_DELAY + halfLifeH();
+    var clearMs = t.getTime() + (PEAK_DELAY + halfLifeH() * Math.log2(log.mg / 10)) * 3600000;
     var clearH  = new Date(clearMs);
     var timeStr = t.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
     var meta = 'Logged ' + timeStr +
       ' · Peak ' + fmtH(t.getHours() + t.getMinutes()/60 + PEAK_DELAY) +
-      ' · Half-gone ' + fmtH(t.getHours() + t.getMinutes()/60 + PEAK_DELAY + HALF_LIFE) +
+      ' · Half-gone ' + fmtH(t.getHours() + t.getMinutes()/60 + PEAK_DELAY + halfLifeH()) +
       (log.mg >= 10 ? ' · Cleared ~' + clearH.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : '');
     return '<div class="caf-log-item">' +
       '<span class="caf-log-em">' + (log.emoji||'☕') + '</span>' +

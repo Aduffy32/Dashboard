@@ -25,6 +25,19 @@
 .reminder-chip:hover { border-color: rgba(242,192,99,0.55); background: rgba(242,192,99,0.14); }
 .reminder-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: #F2C063; box-shadow: 0 0 7px rgba(242,192,99,0.7); flex-shrink: 0; }
 .reminder-chip-arrow { color: var(--text-tertiary); font-size: 11px; }
+.home-ticker { display:flex; align-items:stretch; gap:0; border:1px solid rgba(255,255,255,0.08); border-radius:999px; background:rgba(255,255,255,0.02); overflow:hidden; margin-bottom:16px; }
+.home-ticker-live { display:flex; align-items:center; gap:7px; padding:10px 14px; border-right:1px solid rgba(255,255,255,0.07); flex-shrink:0; }
+.home-ticker-dot { width:7px; height:7px; border-radius:50%; background:#6BE3A4; box-shadow:0 0 8px rgba(107,227,164,0.7); animation:tickerBlink 2s ease-in-out infinite; flex-shrink:0; }
+@keyframes tickerBlink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+.home-ticker-live-lbl { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:10px; font-weight:800; letter-spacing:0.16em; text-transform:uppercase; color:#6BE3A4; }
+.home-ticker-viewport { flex:1; overflow:hidden; -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 24px,#000 calc(100% - 24px),transparent 100%); mask-image:linear-gradient(90deg,transparent 0,#000 24px,#000 calc(100% - 24px),transparent 100%); }
+.home-ticker-track { display:inline-flex; align-items:center; gap:0; padding:0; white-space:nowrap; animation:tickerScroll 32s linear infinite; will-change:transform; }
+.home-ticker:hover .home-ticker-track { animation-play-state:paused; }
+@keyframes tickerScroll { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+.home-ticker-item { display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-right:1px solid rgba(255,255,255,0.07); font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:rgba(250,250,250,0.5); white-space:nowrap; }
+.home-ticker-item b { color:#FAFAFA; font-weight:700; font-variant-numeric:tabular-nums; }
+.home-ticker-item .home-ticker-dot-sep { width:4px; height:4px; border-radius:50%; background:#6BE3A4; opacity:0.6; flex-shrink:0; }
+@media (prefers-reduced-motion:reduce) { .home-ticker-track { animation:none; } }
 </style>
 </head>
 <body class="grain-overlay">
@@ -99,6 +112,16 @@
 
   <div id="dailyReminders"></div>
 
+  <div class="home-ticker" id="homeTicker">
+    <div class="home-ticker-live">
+      <span class="home-ticker-dot"></span>
+      <span class="home-ticker-live-lbl">LIVE</span>
+    </div>
+    <div class="home-ticker-viewport">
+      <div class="home-ticker-track" id="homeTickerTrack"></div>
+    </div>
+  </div>
+
   <!-- Water summary widget -->
   <div class="gm-card hlth-water-widget" id="waterWidget" style="animation: cardSlideIn 0.45s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.04s;"></div>
 
@@ -157,6 +180,73 @@
 
 <script src="shared.js"></script>
 <script>
+function renderHomeTicker() {
+  const ticker = document.getElementById('homeTicker');
+  const track  = document.getElementById('homeTickerTrack');
+  if (!ticker || !track) return;
+
+  const items = [];
+
+  // Recovery
+  if (typeof whoopConnected !== 'undefined' && whoopConnected) {
+    const score = whoopCache?.recovery?.score?.recovery_score;
+    if (score != null) {
+      const color = typeof recoveryColor === 'function' ? recoveryColor(score)
+        : score >= 67 ? '#6BE3A4' : score >= 34 ? '#F2C063' : '#FF6B6B';
+      items.push({ label: 'RECOVERY', value: Math.round(score) + '%', color });
+    }
+  }
+
+  // HRV
+  const hrv = whoopCache?.recovery?.score?.hrv_rmssd_milli;
+  if (hrv != null) items.push({ label: 'HRV', value: Math.round(hrv) + 'ms', color: 'inherit' });
+
+  // Sleep
+  const sleepPct = whoopCache?.sleep?.[0]?.score?.sleep_performance_percentage;
+  if (sleepPct != null) items.push({ label: 'SLEEP', value: Math.round(sleepPct) + '%', color: 'inherit' });
+
+  // Water
+  try {
+    const wd    = waterLoad();
+    const total = (wd.entries || []).reduce((s, e) => s + (e.amount || 0), 0);
+    const goal  = waterGetGoal() || 2500;
+    items.push({ label: 'WATER', value: total + 'ml / ' + goal + 'ml', color: total >= goal ? '#6BE3A4' : 'inherit' });
+  } catch {}
+
+  // Supplements
+  try {
+    const suppCfg   = storeGet('supp_config') || { supplements: [] };
+    const suppTaken = storeGet('supp_taken:' + getActiveDateString()) || {};
+    let taken = 0, total = 0;
+    (suppCfg.supplements || []).forEach(s => {
+      ['morning', 'lunch', 'night'].forEach(sess => {
+        if ((s.sessions || []).includes(sess)) {
+          total++;
+          if (suppTaken[s.id + ':' + sess]) taken++;
+        }
+      });
+    });
+    if (total > 0) items.push({ label: 'SUPPS', value: taken + '/' + total, color: 'inherit' });
+  } catch {}
+
+  // Weight
+  try {
+    const weights = wtLoad();
+    if (weights.length) {
+      const latestWt = weights[weights.length - 1].weight;
+      if (latestWt != null) items.push({ label: 'WEIGHT', value: latestWt + ' kg', color: 'inherit' });
+    }
+  } catch {}
+
+  if (items.length < 2) { ticker.style.display = 'none'; return; }
+  ticker.style.display = '';
+
+  const itemHtml = items.map(it =>
+    `<div class="home-ticker-item"><span class="home-ticker-dot-sep"></span>${it.label}&nbsp;<b style="color:${it.color}">${it.value}</b></div>`
+  ).join('');
+  track.innerHTML = itemHtml + itemHtml;
+}
+
 function renderDailyReminders() {
   const el = document.getElementById('dailyReminders');
   if (!el) return;
@@ -186,6 +276,7 @@ function renderDailyReminders() {
 
 document.addEventListener('DOMContentLoaded', () => {
   renderDailyReminders();
+  renderHomeTicker();
 
   const _origWater = window.waterWidgetRender;
   if (typeof _origWater === 'function') {
@@ -200,6 +291,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.renderWhoopHomeWidget = function() {
       _origWhoop.apply(this, arguments);
       renderDailyReminders();
+    };
+  }
+
+  const _origRWW = window.renderWhoopWidgets;
+  if (typeof _origRWW === 'function') {
+    window.renderWhoopWidgets = function() {
+      _origRWW.apply(this, arguments);
+      renderHomeTicker();
     };
   }
 });
