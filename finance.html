@@ -51,6 +51,38 @@
       </div>
     </div>
 
+    <div class="gm-card fin-networth-card" style="margin-bottom:16px;">
+      <div class="gm-eyebrow" style="margin-bottom:14px;">Net Worth</div>
+      <div class="fin-nw-total-row">
+        <span class="fin-nw-total" id="finNwTotal">€0</span>
+        <button class="fin-nw-edit-btn" id="finNwEditBtn">Edit accounts</button>
+      </div>
+      <div class="fin-nw-accounts" id="finNwAccounts"></div>
+    </div>
+
+    <div class="nutr-panel" id="finAccountsPanel" style="position:fixed;inset:0;z-index:200;background:var(--bg, #050506);overflow-y:auto;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.32,0.72,0,1);">
+      <div class="nutr-panel-hdr" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.07);">
+        <button class="nutr-panel-back" id="finAccountsBack">←</button>
+        <span class="nutr-panel-title">ACCOUNTS</span>
+      </div>
+      <div style="padding:16px;" id="finAccountsList"></div>
+      <div style="padding:0 16px 16px;">
+        <div class="gm-eyebrow" style="margin-bottom:10px;">Add Account</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <input type="text" id="finAccName" class="fin-input" placeholder="Account name (e.g. Revolut, Pension)">
+          <div style="display:flex;gap:8px;">
+            <select id="finAccType" class="fin-input" style="flex:1;">
+              <option value="current">Current</option>
+              <option value="savings">Savings</option>
+              <option value="investment">Investment</option>
+            </select>
+            <input type="number" id="finAccBalance" class="fin-input" placeholder="Balance" style="flex:1;" step="0.01">
+            <button id="finAccAddBtn" class="goal-add-btn">+ Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Daily spending chart -->
     <div class="gm-card fin-chart-wrap">
       <div class="gm-eyebrow" id="finChartTitle">Daily Spending</div>
@@ -159,5 +191,66 @@
 </nav>
 </div>
 <script src="shared.js"></script>
+<script>
+function finAccLoad() { try { return JSON.parse(localStorage.getItem('po_finance_accounts') || '[]'); } catch { return []; } }
+function finAccSave(arr) { localStorage.setItem('po_finance_accounts', JSON.stringify(arr)); }
+
+function finNwRender() {
+  const accounts = finAccLoad();
+  const total = accounts.reduce((s, a) => s + (parseFloat(a.balance) || 0), 0);
+  const fmt = v => (v < 0 ? '-' : '') + '€' + Math.abs(v).toLocaleString('en-IE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const el = document.getElementById('finNwTotal');
+  if (el) { el.textContent = fmt(total); el.style.color = total < 0 ? '#FF6B6B' : 'var(--text-primary)'; }
+  const list = document.getElementById('finNwAccounts');
+  if (!list) return;
+  if (!accounts.length) { list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);font-style:italic;padding:4px 0;">No accounts yet — tap Edit accounts to add.</div>'; return; }
+  list.innerHTML = accounts.map(a => `<div class="fin-nw-account"><div><div class="fin-nw-acc-name">${a.name}</div><div class="fin-nw-acc-type">${a.type}</div></div><div class="fin-nw-acc-balance">${fmt(parseFloat(a.balance)||0)}</div></div>`).join('');
+}
+
+function finAccPanelRender() {
+  const list = document.getElementById('finAccountsList');
+  if (!list) return;
+  const accounts = finAccLoad();
+  if (!accounts.length) { list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);padding:8px 0;">No accounts yet.</div>'; return; }
+  list.innerHTML = accounts.map(a => `<div class="fin-acc-edit-row"><div class="fin-acc-edit-info"><div class="fin-nw-acc-name">${a.name}</div><div class="fin-nw-acc-type">${a.type}</div></div><input class="fin-acc-bal-in" type="number" data-id="${a.id}" value="${a.balance}" step="0.01"><button class="fin-acc-del-btn" data-del="${a.id}">✕</button></div>`).join('');
+  list.querySelectorAll('.fin-acc-bal-in').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const all = finAccLoad(); const idx = all.findIndex(x => x.id === inp.dataset.id);
+      if (idx >= 0) { all[idx].balance = parseFloat(inp.value) || 0; finAccSave(all); finNwRender(); }
+    });
+  });
+  list.querySelectorAll('.fin-acc-del-btn').forEach(btn => {
+    btn.addEventListener('click', () => { finAccSave(finAccLoad().filter(x => x.id !== btn.dataset.del)); finAccPanelRender(); finNwRender(); });
+  });
+}
+
+function finAccInit() {
+  document.getElementById('finNwEditBtn')?.addEventListener('click', () => {
+    finAccPanelRender();
+    const p = document.getElementById('finAccountsPanel');
+    if (p) p.style.transform = 'translateX(0)';
+  });
+  document.getElementById('finAccountsBack')?.addEventListener('click', () => {
+    const p = document.getElementById('finAccountsPanel');
+    if (p) p.style.transform = 'translateX(100%)';
+  });
+  document.getElementById('finAccAddBtn')?.addEventListener('click', () => {
+    const name = document.getElementById('finAccName').value.trim();
+    const type = document.getElementById('finAccType').value;
+    const bal  = parseFloat(document.getElementById('finAccBalance').value) || 0;
+    if (!name) return;
+    const all = finAccLoad();
+    all.push({ id: 'acc_' + Date.now(), name, type, balance: bal });
+    finAccSave(all);
+    document.getElementById('finAccName').value = '';
+    document.getElementById('finAccBalance').value = '';
+    finAccPanelRender();
+    finNwRender();
+  });
+  finNwRender();
+}
+
+finAccInit();
+</script>
 </body>
 </html>

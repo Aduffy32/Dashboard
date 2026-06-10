@@ -1914,6 +1914,69 @@ function renderGym() {
   poRenderHistory();
   wtRender();
   gymRenderMgmt();
+  renderGymPrTicker();
+}
+
+function renderGymPrTicker() {
+  const el = document.getElementById('gymPrTicker');
+  if (!el) return;
+
+  const state = loadGymState();
+  const allExIds = new Set();
+  (state.splitRotation || []).forEach(dayName => {
+    ((state.splits || {})[dayName] || []).forEach(ex => allExIds.add(ex.id));
+  });
+  Object.keys(state.logs || {}).forEach(id => allExIds.add(id));
+
+  const items = [];
+  allExIds.forEach(exId => {
+    const logs = (state.logs[exId] || []).slice().sort((a, b) => a.date < b.date ? -1 : 1);
+    if (logs.length < 2) return;
+
+    let exName = exId;
+    (state.splitRotation || []).forEach(dayName => {
+      ((state.splits || {})[dayName] || []).forEach(ex => { if (ex.id === exId) exName = ex.name; });
+    });
+    (state.exercises || []).forEach(ex => { if (ex.id === exId) exName = ex.name; });
+
+    const todayKey = logs[logs.length - 1].date;
+    const allTime1RM = logs.reduce((best, l) => {
+      if (l.weight == null || l.reps == null) return best;
+      const rm = l.weight * (1 + l.reps / 30);
+      return rm > best ? rm : best;
+    }, 0);
+    const prevLogs = logs.filter(l => l.date < todayKey);
+    const prev1RM = prevLogs.reduce((best, l) => {
+      if (l.weight == null || l.reps == null) return best;
+      const rm = l.weight * (1 + l.reps / 30);
+      return rm > best ? rm : best;
+    }, 0);
+
+    if (allTime1RM < 1) return;
+    const trend = allTime1RM > prev1RM * 1.01 ? 'up' : 'flat';
+    const units = state.units || 'kg';
+    items.push({ name: exName, val: Math.round(allTime1RM) + units, trend });
+  });
+
+  if (items.length < 2) { el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  const itemsHtml = items.map(it =>
+    `<div class="gym-pr-item">
+      <span class="gym-pr-item-name">${it.name}</span>
+      <span class="gym-pr-item-val">${it.val}</span>
+      <span class="gym-pr-item-arrow ${it.trend}">${it.trend === 'up' ? '↑' : '→'}</span>
+    </div>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="gym-pr-badge">
+      <span class="gym-pr-badge-dot"></span>
+      <span class="gym-pr-badge-lbl">PRs</span>
+    </div>
+    <div class="gym-pr-viewport">
+      <div class="gym-pr-track">${itemsHtml}${itemsHtml}</div>
+    </div>`;
 }
 
 function poRenderDayPill() {
@@ -2402,6 +2465,11 @@ function wtRenderChart(entries) {
     return [xOf(i), yOf(avg)];
   });
 
+  const showAvg = recent.length >= 4;
+  const avgPathEl = showAvg
+    ? `<path d="M ${avgPts.slice(2).map(p => p.join(',')).join(' L ')}" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-dasharray="4 3" stroke-linecap="round" stroke-linejoin="round"/>`
+    : '';
+
   const lastPt = pts[pts.length - 1];
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('preserveAspectRatio', 'none');
@@ -2413,11 +2481,21 @@ function wtRenderChart(entries) {
       </linearGradient>
     </defs>
     <path class="wt2-chart-area" fill="url(#pcf)" d="${areaD}"/>
-    <polyline class="wt2-chart-avg" points="${avgPts.map(p => p.join(',')).join(' ')}"/>
     <path class="wt2-chart-line" d="${lineD}"/>
+    ${avgPathEl}
     ${recent.slice(0,-1).map((_,i) => `<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="3" fill="var(--success)" opacity="0.45"/>`).join('')}
     <circle cx="${lastPt[0]}" cy="${lastPt[1]}" r="5" fill="var(--success)" style="filter:drop-shadow(0 0 4px rgba(107,227,164,0.7))"/>
   `;
+
+  let legendEl = document.getElementById('wtChartLegend');
+  if (!legendEl && svg.parentElement) {
+    legendEl = document.createElement('div');
+    legendEl.id = 'wtChartLegend';
+    svg.parentElement.insertBefore(legendEl, svg.nextSibling);
+  }
+  if (legendEl) {
+    legendEl.innerHTML = showAvg ? `<div class="wt-chart-legend"><div class="wt-legend-item"><span class="wt-legend-line wt-legend-line-solid"></span>Weight</div><div class="wt-legend-item"><span class="wt-legend-line wt-legend-line-dashed"></span>7d avg</div></div>` : '';
+  }
 
   if (yAxisEl) yAxisEl.innerHTML = `<span>${hi.toFixed(1)}</span><span>${lo.toFixed(1)}</span>`;
   if (metaEl) {
@@ -4894,6 +4972,53 @@ function renderWhoopHealthSection() {
 
   el.innerHTML = heroHtml + (connected ? `<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:16px;"><button class="whoop-reconnect-btn" onclick="whoopStartAuth()">Reconnect</button><button class="whoop-reconnect-btn" style="color:var(--danger);border-color:rgba(255,107,107,0.2);" onclick="whoopDisconnect()">Disconnect</button></div>` : '');
   renderHydrationPanel();
+  renderRecoveryTips();
+}
+
+function renderRecoveryTips() {
+  const el = document.getElementById('recoveryTipsCard');
+  if (!el) return;
+
+  try {
+    const bridge = JSON.parse(localStorage.getItem('patron_health_v1') || 'null');
+    if (!bridge || !bridge.connected) { el.style.display = 'none'; return; }
+
+    const rec    = bridge.recovery;
+    const hrv    = bridge.hrv;
+    const rhr    = bridge.rhr;
+    const sleep  = bridge.sleepHours;
+    const sleepP = bridge.sleepPerf;
+
+    const tips = [];
+
+    if (rec != null) {
+      if (rec < 34)      tips.push({ icon: '🔴', text: '<b>Full rest day recommended.</b> Your body is in active recovery. Avoid high-intensity training.' });
+      else if (rec < 50) tips.push({ icon: '🟡', text: '<b>Light activity only.</b> Zone 2 cardio or mobility work — nothing that spikes heart rate significantly.' });
+      else if (rec < 67) tips.push({ icon: '🟡', text: '<b>Moderate training okay.</b> Stick to your planned session but cap intensity — leave 2 reps in the tank on every set.' });
+      else               tips.push({ icon: '🟢', text: '<b>Primed for performance.</b> Good day for a max effort session or new PR attempt.' });
+    }
+
+    if (hrv != null) {
+      if (hrv < 35)      tips.push({ icon: '⚡', text: 'HRV is very low (' + hrv + 'ms). Cut caffeine by midday and consider an early bedtime tonight.' });
+      else if (hrv < 55) tips.push({ icon: '⚡', text: 'HRV is below your baseline (' + hrv + 'ms). Avoid late caffeine and prioritise sleep.' });
+    }
+
+    if (rhr != null) {
+      if (rhr > 65)      tips.push({ icon: '❤️', text: 'Resting HR is elevated at ' + rhr + ' bpm — could indicate fatigue, illness, or dehydration. Drink extra water today.' });
+    }
+
+    if (sleepP != null && sleepP < 60) {
+      tips.push({ icon: '😴', text: 'Sleep performance was only ' + Math.round(sleepP) + '%. Front-load demanding cognitive work before 2pm today.' });
+    } else if (sleep != null && sleep < 6) {
+      tips.push({ icon: '😴', text: 'Only ' + sleep.toFixed(1) + ' hours of sleep. Avoid making major decisions this afternoon — reaction time and focus are impaired.' });
+    }
+
+    if (!tips.length) { el.style.display = 'none'; return; }
+
+    el.style.display = '';
+    el.innerHTML = '<div class="rec-tips-title">Today\'s Readiness Notes</div>'
+      + tips.map(t => '<div class="rec-tip-row"><span class="rec-tip-icon">' + t.icon + '</span><span class="rec-tip-text">' + t.text + '</span></div>').join('');
+  } catch (e) { el.style.display = 'none'; }
 }
 
 // ── Hydration + Supplement panel ────────────────────────────

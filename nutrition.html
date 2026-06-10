@@ -14,6 +14,20 @@
 <meta name="theme-color" content="#050506" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<style>
+.nutr-tpl-btn { padding:8px 14px; border-radius:999px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:var(--text-secondary); font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; transition:background 0.15s,border-color 0.15s; }
+.nutr-tpl-btn:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.2); }
+.nutr-tpl-add-new { appearance:none; background:rgba(107,227,164,0.12); border:1px solid rgba(107,227,164,0.28); border-radius:999px; color:#6BE3A4; font-size:11px; font-weight:700; padding:6px 12px; cursor:pointer; font-family:inherit; margin-left:auto; }
+.nutr-tpl-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; margin-bottom:8px; }
+.nutr-tpl-info { flex:1; min-width:0; }
+.nutr-tpl-name { font-size:14px; font-weight:700; color:var(--text-primary); margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nutr-tpl-meta { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:10px; color:var(--text-tertiary); }
+.nutr-tpl-actions { display:flex; gap:8px; flex-shrink:0; }
+.nutr-tpl-use { appearance:none; padding:7px 14px; border-radius:999px; border:1px solid rgba(107,227,164,0.28); background:rgba(107,227,164,0.1); color:#6BE3A4; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
+.nutr-tpl-del { appearance:none; padding:7px 10px; border-radius:999px; border:1px solid rgba(255,255,255,0.08); background:transparent; color:var(--text-tertiary); font-size:12px; cursor:pointer; }
+.nutr-tpl-del:hover { color:#FF6B6B; border-color:rgba(255,107,107,0.3); }
+.nutr-tpl-empty { text-align:center; padding:32px 16px; color:var(--text-tertiary); font-size:13px; line-height:1.6; }
+</style>
 </head>
 <body class="grain-overlay">
 <!-- Auth overlay -->
@@ -40,6 +54,7 @@
       <div class="nutr-date-lbl" id="nutrDateLabel"></div>
       <div class="nutr-page-title">Nutrition</div>
     </div>
+    <button class="nutr-tpl-btn" id="nutrTplBtn">⭐ templates</button>
     <button class="nutr-log-btn" id="nutrLogBtn">+ log</button>
   </div>
 
@@ -120,6 +135,16 @@
     <span class="nutr-panel-title">ALL MICRONUTRIENTS · TODAY</span>
   </div>
   <div class="nutr-panel-body" id="nutrAllMicrosList"></div>
+</div>
+
+<!-- Templates Panel -->
+<div class="nutr-panel" id="nutrTplPanel">
+  <div class="nutr-panel-hdr">
+    <button class="nutr-panel-back" id="nutrTplBack">←</button>
+    <span class="nutr-panel-title">MEAL TEMPLATES</span>
+    <button class="nutr-tpl-add-new" id="nutrTplAddNew">+ save current</button>
+  </div>
+  <div class="nutr-panel-body" id="nutrTplList"></div>
 </div>
 
 <!-- Add / Edit Meal Modal (inside #page-nutrition for position:absolute anchoring) -->
@@ -210,5 +235,82 @@
 </nav>
 </div>
 <script src="shared.js"></script>
+<script>
+function tplLoad() { try { return JSON.parse(localStorage.getItem('nutr_templates') || '[]'); } catch { return []; } }
+function tplSave(arr) { localStorage.setItem('nutr_templates', JSON.stringify(arr)); }
+
+function tplOpen() {
+  tplRender();
+  document.getElementById('nutrTplPanel').classList.add('open');
+}
+
+function tplRender() {
+  const list = document.getElementById('nutrTplList');
+  if (!list) return;
+  const templates = tplLoad().sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
+  if (!templates.length) {
+    list.innerHTML = '<div class="nutr-tpl-empty">No templates yet.<br>Log a meal then tap "+ save current" to save it as a template.</div>';
+    return;
+  }
+  list.innerHTML = templates.map(t => `
+    <div class="nutr-tpl-item">
+      <div class="nutr-tpl-info">
+        <div class="nutr-tpl-name">${t.name}</div>
+        <div class="nutr-tpl-meta">${t.cal}kcal · P:${t.pro}g C:${t.carb}g F:${t.fat}g${t.usageCount ? ' · used ' + t.usageCount + 'x' : ''}</div>
+      </div>
+      <div class="nutr-tpl-actions">
+        <button class="nutr-tpl-use" data-id="${t.id}">+ log</button>
+        <button class="nutr-tpl-del" data-id="${t.id}">✕</button>
+      </div>
+    </div>`).join('');
+  list.querySelectorAll('.nutr-tpl-use').forEach(btn => btn.addEventListener('click', () => tplApply(btn.dataset.id)));
+  list.querySelectorAll('.nutr-tpl-del').forEach(btn => btn.addEventListener('click', () => { tplDelete(btn.dataset.id); tplRender(); }));
+}
+
+function tplApply(id) {
+  const t = tplLoad().find(x => x.id === id);
+  if (!t) return;
+  const all = tplLoad();
+  const idx = all.findIndex(x => x.id === id);
+  if (idx >= 0) { all[idx].usageCount = (all[idx].usageCount || 0) + 1; tplSave(all); }
+  openAddMealModal();
+  setTimeout(() => {
+    const n = document.getElementById('nutrMName');
+    const c = document.getElementById('nutrMCal');
+    const p = document.getElementById('nutrMPro');
+    const cb = document.getElementById('nutrMCarb');
+    const f = document.getElementById('nutrMFat');
+    const d = document.getElementById('nutrMDesc');
+    if (n) n.value = t.name;
+    if (c) c.value = t.cal;
+    if (p) p.value = t.pro;
+    if (cb) cb.value = t.carb;
+    if (f) f.value = t.fat;
+    if (d && t.desc) d.value = t.desc;
+  }, 50);
+  document.getElementById('nutrTplPanel').classList.remove('open');
+}
+
+function tplDelete(id) {
+  tplSave(tplLoad().filter(x => x.id !== id));
+}
+
+function tplSaveCurrent() {
+  const data = loadNutritionData();
+  const logged = (data.meals[nutritionTodayKey()] || []).filter(m => !m.planned).sort((a, b) => b.time > a.time ? 1 : -1);
+  if (!logged.length) { alert('Log a meal first, then save it as a template.'); return; }
+  const m = logged[0];
+  const name = prompt('Template name:', m.name || 'Meal');
+  if (!name) return;
+  const templates = tplLoad();
+  templates.push({ id: 'tpl_' + Date.now(), name: name.trim(), cal: m.cal || 0, pro: m.pro || 0, carb: m.carb || 0, fat: m.fat || 0, desc: m.desc || '', usageCount: 0 });
+  tplSave(templates);
+  tplRender();
+}
+
+document.getElementById('nutrTplBtn')?.addEventListener('click', tplOpen);
+document.getElementById('nutrTplBack')?.addEventListener('click', () => document.getElementById('nutrTplPanel').classList.remove('open'));
+document.getElementById('nutrTplAddNew')?.addEventListener('click', tplSaveCurrent);
+</script>
 </body>
 </html>
