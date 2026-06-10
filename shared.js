@@ -2334,44 +2334,96 @@ function wtRender() {
 }
 
 function wtRenderChart(entries) {
-  const svg = document.getElementById('wtChart');
-  if (!svg) return;
-  svg.innerHTML = '';
-  if (entries.length < 2) {
-    if (entries.length === 1) {
-      const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-      txt.setAttribute('x','150'); txt.setAttribute('y','32');
-      txt.setAttribute('fill','var(--text-tertiary)'); txt.setAttribute('font-size','11');
-      txt.setAttribute('text-anchor','middle'); txt.textContent = 'Log more to see trend';
-      svg.appendChild(txt);
+  const svg     = document.getElementById('wtChart');
+  const yAxisEl = document.getElementById('wt2YAxis');
+  const metaEl  = document.getElementById('wt2ChartMeta');
+  const chipEl  = document.getElementById('wt2DeltaChip');
+
+  // 7-day delta chip
+  if (chipEl) {
+    const units = loadGymState().units || 'kg';
+    let chipHtml = '';
+    if (entries.length >= 2) {
+      const sorted = entries.slice().sort((a,b) => a.dateKey < b.dateKey ? -1 : 1);
+      const latest = sorted[sorted.length - 1];
+      const cutoff = new Date(latest.dateKey); cutoff.setDate(cutoff.getDate() - 7);
+      const inWin  = sorted.filter(e => new Date(e.dateKey) >= cutoff);
+      const ref    = inWin.length >= 2 ? inWin[0] : null;
+      if (ref) {
+        const diff = latest.weight - ref.weight;
+        if (Math.abs(diff) > 0.05) {
+          const dn = diff < 0;
+          chipHtml = `<span class="wt2-delta-chip ${dn ? 'down' : 'up'}">${dn ? '↓' : '↑'} ${Math.abs(diff).toFixed(1)} ${units} <span class="wt2-chip-window">· 7D</span></span>`;
+        }
+      }
     }
+    chipEl.innerHTML = chipHtml;
+  }
+
+  if (!svg) return;
+
+  const recent = entries.slice(-30);
+  const W = 300, H = 150;
+
+  if (recent.length < 2) {
+    svg.innerHTML = recent.length === 1
+      ? `<text x="150" y="80" fill="var(--text-tertiary)" font-size="11" text-anchor="middle">Log more to see trend</text>`
+      : '';
+    if (yAxisEl) yAxisEl.innerHTML = '<span></span><span></span>';
+    if (metaEl)  metaEl.textContent = recent.length === 0 ? '' : '1 entry — log more to see trend';
     return;
   }
-  const recent = entries.slice(-28);
-  const vals   = recent.map(e => e.weight);
-  const min    = Math.min(...vals), max = Math.max(...vals), range = max - min || 1;
-  const W = 300, H = 60, pad = 4;
-  const pts = recent.map((e, i) => [
-    pad + (i / (recent.length - 1)) * (W - pad * 2),
-    H - pad - ((e.weight - min) / range) * (H - pad * 2)
-  ]);
 
-  const area = document.createElementNS('http://www.w3.org/2000/svg','path');
-  area.setAttribute('d', `M${pts[0][0]},${H} ` + pts.map(([x,y]) => `L${x},${y}`).join(' ') + ` L${pts[pts.length-1][0]},${H} Z`);
-  area.setAttribute('fill', 'rgba(107,227,164,0.08)');
-  svg.appendChild(area);
+  const vals  = recent.map(e => e.weight);
+  const lo    = Math.min(...vals), hi = Math.max(...vals);
+  const range = Math.max(hi - lo, 0.3);
+  const pT = 14, pB = 20, cH = H - pT - pB;
 
-  const line = document.createElementNS('http://www.w3.org/2000/svg','path');
-  line.setAttribute('d', 'M' + pts.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' L'));
-  line.setAttribute('fill','none'); line.setAttribute('stroke','var(--success)');
-  line.setAttribute('stroke-width','1.8'); line.setAttribute('stroke-linejoin','round'); line.setAttribute('stroke-linecap','round');
-  svg.appendChild(line);
+  const xOf = i  => ((i / (recent.length - 1)) * W).toFixed(2);
+  const yOf = v  => (pT + (1 - (v - lo) / range) * cH).toFixed(2);
+  const pts      = recent.map((e, i) => [xOf(i), yOf(e.weight)]);
 
-  const [lx,ly] = pts[pts.length-1];
-  const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
-  dot.setAttribute('cx', lx.toFixed(1)); dot.setAttribute('cy', ly.toFixed(1));
-  dot.setAttribute('r','3'); dot.setAttribute('fill','var(--success)');
-  svg.appendChild(dot);
+  function smoothPath(p) {
+    let d = `M ${p[0][0]} ${p[0][1]}`;
+    for (let i = 1; i < p.length - 1; i++) {
+      const mx = ((parseFloat(p[i][0]) + parseFloat(p[i+1][0])) / 2).toFixed(2);
+      const my = ((parseFloat(p[i][1]) + parseFloat(p[i+1][1])) / 2).toFixed(2);
+      d += ` Q ${p[i][0]} ${p[i][1]} ${mx} ${my}`;
+    }
+    d += ` T ${p[p.length-1][0]} ${p[p.length-1][1]}`;
+    return d;
+  }
+
+  const lineD  = smoothPath(pts);
+  const areaD  = `${lineD} L ${pts[pts.length-1][0]} ${H} L ${pts[0][0]} ${H} Z`;
+  const avgPts = recent.map((_, i) => {
+    const win = recent.slice(Math.max(0, i - 6), i + 1);
+    const avg = win.reduce((s, e) => s + e.weight, 0) / win.length;
+    return [xOf(i), yOf(avg)];
+  });
+
+  const lastPt = pts[pts.length - 1];
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="pcf" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--success)" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="var(--success)" stop-opacity="0.01"/>
+      </linearGradient>
+    </defs>
+    <path class="wt2-chart-area" fill="url(#pcf)" d="${areaD}"/>
+    <polyline class="wt2-chart-avg" points="${avgPts.map(p => p.join(',')).join(' ')}"/>
+    <path class="wt2-chart-line" d="${lineD}"/>
+    ${recent.slice(0,-1).map((_,i) => `<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="3" fill="var(--success)" opacity="0.45"/>`).join('')}
+    <circle cx="${lastPt[0]}" cy="${lastPt[1]}" r="5" fill="var(--success)" style="filter:drop-shadow(0 0 4px rgba(107,227,164,0.7))"/>
+  `;
+
+  if (yAxisEl) yAxisEl.innerHTML = `<span>${hi.toFixed(1)}</span><span>${lo.toFixed(1)}</span>`;
+  if (metaEl) {
+    const dr = Math.round((new Date(recent[recent.length-1].dateKey) - new Date(recent[0].dateKey)) / 86400000) + 1;
+    metaEl.textContent = `${recent.length} entr${recent.length !== 1 ? 'ies' : 'y'} · last ${dr} day${dr !== 1 ? 's' : ''}`;
+  }
 }
 
 function wtInit() {
@@ -4829,23 +4881,11 @@ function renderHydrationPanel() {
   if (strain !== null) { wStrain = `+${Math.round(strain*35)}ml strain`; }
   else { try { const gs = loadGymState(); if (gs.workoutDone && gs.workoutDone[getActiveDateString()]) wStrain = '+500ml training'; } catch {} }
 
-  const wte = wtLoad(), wt14 = wte.slice(-14);
-  const curWt = wt14.length ? wt14[wt14.length-1].weight : null;
-  const earWt = wt14.length >= 2 ? wt14[0].weight : null;
-  const wtDlt = (curWt !== null && earWt !== null) ? curWt - earWt : null;
-  const wtDS  = wtDlt !== null ? (wtDlt <= 0 ? `↘ ${Math.abs(wtDlt).toFixed(1)}` : `↗ +${wtDlt.toFixed(1)}`) : null;
-  const wtDC  = wtDlt !== null ? (wtDlt <= 0 ? S : D) : 'var(--text-tertiary)';
-
-  let bCht = '<div style="height:36px;"></div>';
-  if (wt14.length >= 2) {
-    const wts = wt14.map(e=>e.weight), mnW = Math.min(...wts), mxW = Math.max(...wts), rW = Math.max(mxW-mnW,0.5);
-    const yW = v => 28 - Math.max(((v-mnW)/rW)*22+4, 2);
-    const brs = wt14.map((e,i) => { const hW = Math.max(((e.weight-mnW)/rW)*22+4,2); return `<rect x="${i*10+1}" y="${28-hW}" width="7" height="${hW}" fill="${W}" opacity="${i===wt14.length-1?1:0.5}" rx="1"/>`; }).join('');
-    let lnD = `M 4.5 ${yW(wt14[0].weight)}`;
-    wt14.forEach((e,i)=>{ if(i>0) lnD+=` L ${i*10+4.5} ${yW(e.weight)}`; });
-    const lxW=(wt14.length-1)*10+4.5, lyW=yW(wt14[wt14.length-1].weight);
-    bCht=`<svg viewBox="0 0 140 32" preserveAspectRatio="none" style="width:100%;height:36px;display:block;"><line x1="0" y1="28" x2="140" y2="28" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" stroke-dasharray="2 2"/>${brs}<path d="${lnD}" stroke="${S}" stroke-width="1.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${lxW}" cy="${lyW}" r="1.6" fill="${S}"/></svg>`;
-  }
+  const wte        = wtLoad().slice().sort((a,b) => a.dateKey < b.dateKey ? -1 : 1);
+  const wtUnits    = loadGymState().units || 'kg';
+  const wtToday    = gymToday();
+  const wtTodayEnt = wte.find(e => e.dateKey === wtToday);
+  const curWt      = wte.length ? wte[wte.length-1].weight : null;
 
   const fH = Math.max(Math.round(wPct*42), 0);
   const btl = `<svg viewBox="0 0 50 64" style="width:38px;height:58px;"><path d="M16 4 L34 4 L34 12 L40 18 L40 60 L10 60 L10 18 L16 12 Z" fill="none" stroke="${B}" stroke-width="1.5"/><rect id="hlthBottleFillRect" x="11" y="${60-fH}" width="28" height="${fH}" fill="${B}" opacity="0.32"/>${[22,30,38,46,54].map(y=>`<line x1="38" y1="${y}" x2="40" y2="${y}" stroke="${B}" stroke-width="0.8"/>`).join('')}</svg>`;
@@ -4866,16 +4906,48 @@ function renderHydrationPanel() {
   const sRows = sCfg.supplements.map((s,i) => `<div class="hlth-supp-matrix-grid" style="padding:7px 2px;${i<sCfg.supplements.length-1?'border-bottom:1px dashed rgba(255,255,255,0.08);':''}"><span style="font-size:13px;color:var(--text-primary);">${s.name}</span>${cdot(s.id,'morning',s.sessions)}${cdot(s.id,'lunch',s.sessions)}${cdot(s.id,'night',s.sessions)}</div>`).join('');
 
   el.innerHTML = `
-  <div class="hlth-body-row" style="margin-bottom:10px;">
-    <div class="gm-card" style="padding:10px;margin-bottom:0;border:1px solid rgba(91,184,245,0.2);">
-      <span style="font-family:ui-monospace,monospace;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:${B};display:block;margin-bottom:6px;">HYDRATION</span>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">${btl}<div style="text-align:center;"><div id="hlthBottleAmountText" style="font-size:16px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;">${wIL} / ${wGL} L</div>${wStrain?`<div style="font-family:ui-monospace,monospace;font-size:8px;color:var(--text-tertiary);margin-top:2px;">${wStrain}</div>`:''}</div></div>
+  <div class="gm-card" style="padding:10px;margin-bottom:10px;border:1px solid rgba(91,184,245,0.2);">
+    <span style="font-family:ui-monospace,monospace;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:${B};display:block;margin-bottom:6px;">HYDRATION</span>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">${btl}<div style="text-align:center;"><div id="hlthBottleAmountText" style="font-size:16px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;">${wIL} / ${wGL} L</div>${wStrain?`<div style="font-family:ui-monospace,monospace;font-size:8px;color:var(--text-tertiary);margin-top:2px;">${wStrain}</div>`:''}</div></div>
+  </div>
+  <div class="gm-card wt-card" style="margin-bottom:10px;">
+    <span style="font-family:ui-monospace,monospace;font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:${W};display:block;margin-bottom:14px;">BODY WEIGHT</span>
+    <div class="wt2-hero-num-row">
+      <span class="wt2-hero-num" id="wtNum">${curWt !== null ? curWt.toFixed(1) : '—'}</span>
+      <span class="wt2-hero-unit" id="wtUnitSpan">${wtUnits}</span>
     </div>
-    <div class="gm-card" style="padding:10px;margin-bottom:0;border:1px solid rgba(242,192,99,0.2);cursor:pointer;" onclick="hlthBodyModalOpen()">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;"><span style="font-family:ui-monospace,monospace;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:${W};">BODY · 14D</span>${wtDS?`<span style="font-family:ui-monospace,monospace;font-size:9px;color:${wtDC};">${wtDS}</span>`:''}</div>
-      <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:4px;"><span style="font-family:var(--font-display-serif);font-size:26px;font-weight:500;line-height:1;font-variant-numeric:tabular-nums;">${curWt!==null?curWt.toFixed(1):'—'}</span><span style="font-family:ui-monospace,monospace;font-size:9px;color:var(--text-tertiary);">kg</span></div>
-      ${bCht}
+    <div class="wt2-chip-row">
+      <span id="wt2DeltaChip"></span>
+      <span class="wt-streak" id="wtStreak" style="display:none;"></span>
     </div>
+    <div class="wt2-chart-wrap">
+      <div class="wt2-y-axis" id="wt2YAxis"><span></span><span></span></div>
+      <svg class="wt2-chart" id="wtChart" viewBox="0 0 300 150" preserveAspectRatio="none"></svg>
+    </div>
+    <div class="wt2-chart-meta" id="wt2ChartMeta"></div>
+    <div class="wt2-chart-legend">
+      <span class="wt2-legend-item"><span class="wt2-legend-line"></span>DAILY</span>
+      <span class="wt2-legend-item"><span class="wt2-legend-avg"></span>7-DAY AVG</span>
+    </div>
+    <div id="wtForm" class="wt-form" ${wtTodayEnt ? 'style="display:none;"' : ''}>
+      <input id="wtIn" class="wt-in" type="number" min="0" step="0.1" placeholder="0.0">
+      <span class="wt-unit-lbl" id="wtInUnit">${wtUnits}</span>
+      <button id="wtSaveBtn" class="wt-save-btn">Save</button>
+    </div>
+    <div id="wtLocked" class="wt2-locked" ${wtTodayEnt ? '' : 'style="display:none;"'}>
+      <div class="wt2-locked-left">
+        <div class="wt2-locked-check">✓</div>
+        <div>
+          <div class="wt2-locked-lbl">LOGGED TODAY</div>
+          <div class="wt2-locked-val" id="wtLockedTxt">${wtTodayEnt ? wtTodayEnt.weight.toFixed(1) + ' ' + wtUnits : '—'}</div>
+        </div>
+      </div>
+      <button id="wtLockedEdit" class="wt2-edit-btn">Edit</button>
+    </div>
+    <span id="wtDelta" class="wt-delta" style="display:none;"></span>
+    <button class="wt-photos-btn" id="wtPhotosBtn" style="margin-top:12px;">
+      📷 <span>Progress Photos</span><span class="wt-photos-arr">›</span>
+    </button>
   </div>
   <div class="gm-card" style="padding:12px 14px 14px;margin-bottom:10px;border:1px solid rgba(107,227,164,0.2);">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;"><span style="font-family:ui-monospace,monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:${S};">SUPPLEMENT MATRIX · ${sTkC}/${sTtC}</span><span style="font-family:ui-monospace,monospace;font-size:9px;color:var(--text-tertiary);">NEXT ${nxS}</span></div>
@@ -4885,6 +4957,7 @@ function renderHydrationPanel() {
     <div class="hlth-water-history" id="hlthWaterHistory"></div>
   </div>
   `;
+  wtInit();
 }
 
 // ── Metric info modal ───────────────────────────────────────

@@ -851,11 +851,18 @@ function cafBuildTips(logs) {
   var total = logs.reduce(function(s,l){ return s+l.mg; }, 0);
   var first = logs.length ? new Date(logs[0].ts) : null;
   var lim = cafDailyLimit();
-  if (first && first.getHours() >= 10)
+  if (!first) {
+    tips.push('Log your first drink to get personalised timing advice based on your cortisol window.');
+  } else if (first.getHours() >= 10) {
     tips.push('Front-load your caffeine — first dose within 90 min of waking (around '+cafFmtH(cafWakeHour+1.5)+') maximises absorption with your morning cortisol peak.');
-  else
+  } else {
     tips.push('Good timing — your first caffeine is inside the morning cortisol window for best effect.');
-  tips.push('Your cutoff today is '+cafFmtH(ct)+'. A drink after that leaves >30 mg active at '+cafFmtH(cafBedHour)+' and can delay sleep onset.');
+  }
+  if (first) {
+    tips.push('Your cutoff today is '+cafFmtH(ct)+'. A drink after that leaves >30 mg active at '+cafFmtH(cafBedHour)+' and can delay sleep onset.');
+  } else {
+    tips.push('Your caffeine cutoff today is '+cafFmtH(ct)+' — anything after that will still be in your system at bedtime.');
+  }
   tips.push('Caffeine is mildly diuretic — add ≈200 ml water per 100 mg consumed to stay hydrated.');
   tips.push('A 10-min walk in natural light during a predicted dip restores alertness without extra caffeine.');
   if (cafRecoveryScore !== null && cafRecoveryScore < 34)

@@ -830,6 +830,35 @@ select.fin-input option { background: #111113; color: #FAFAFA; }
 .wt-photos-btn:hover { background: rgba(255,255,255,0.05); }
 .wt-photos-arr { margin-left: auto; color: var(--text-tertiary); }
 
+/* ── Weight tracker v2 ───────────────────────────────────────────── */
+.wt2-hero-num-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.wt2-hero-num { font-size: 64px; font-weight: 700; line-height: 1; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.wt2-hero-unit { font-size: 18px; color: var(--text-tertiary); font-weight: 500; }
+.wt2-chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; min-height: 10px; }
+.wt2-delta-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; padding: 5px 11px; border-radius: 999px; border: 1px solid transparent; }
+.wt2-delta-chip.down { background: rgba(107,227,164,0.10); border-color: rgba(107,227,164,0.24); color: var(--success); }
+.wt2-delta-chip.up { background: rgba(242,192,99,0.10); border-color: rgba(242,192,99,0.24); color: var(--warning); }
+.wt2-chip-window { font-weight: 400; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; opacity: .65; }
+.wt2-chart-wrap { position: relative; margin: 0 0 6px; padding-left: 36px; }
+.wt2-y-axis { position: absolute; left: 0; top: 14px; bottom: 20px; display: flex; flex-direction: column; justify-content: space-between; font-family: ui-monospace,monospace; font-size: 10px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.wt2-chart { display: block; width: 100%; height: 150px; }
+.wt2-chart-area { stroke: none; }
+.wt2-chart-line { fill: none; stroke: var(--success); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 5px rgba(107,227,164,0.55)); }
+.wt2-chart-avg { fill: none; stroke: rgba(255,255,255,0.4); stroke-width: 1.2; stroke-dasharray: 4 4; stroke-linecap: round; }
+.wt2-chart-grid { stroke: rgba(255,255,255,0.04); stroke-width: 0.5; }
+.wt2-chart-meta { text-align: center; font-size: 11px; color: var(--text-tertiary); margin-bottom: 6px; }
+.wt2-chart-legend { display: flex; justify-content: center; gap: 20px; margin-bottom: 14px; }
+.wt2-legend-item { display: inline-flex; align-items: center; gap: 6px; font-family: ui-monospace,monospace; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-tertiary); }
+.wt2-legend-line { width: 14px; height: 2px; border-radius: 2px; background: var(--success); }
+.wt2-legend-avg { width: 14px; height: 0; border-top: 2px dashed rgba(255,255,255,0.45); }
+.wt2-locked { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; margin-top: 4px; }
+.wt2-locked-left { display: flex; align-items: center; gap: 12px; }
+.wt2-locked-check { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(107,227,164,0.12); color: var(--success); font-size: 15px; font-weight: 700; flex-shrink: 0; }
+.wt2-locked-lbl { font-family: ui-monospace,monospace; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-tertiary); }
+.wt2-locked-val { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.wt2-edit-btn { appearance: none; background: transparent; border: 1px solid rgba(255,255,255,0.18); color: var(--text-secondary); font-family: inherit; font-size: 12px; padding: 7px 16px; border-radius: 999px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.wt2-edit-btn:hover { color: var(--text-primary); border-color: var(--success); }
+
 /* ── Progress photos overlay ─────────────────────────────────────── */
 .photos-toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
 .photos-file-btn { flex: 1; padding: 13px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04); color: var(--text-primary); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; text-align: center; transition: background 0.15s; }
