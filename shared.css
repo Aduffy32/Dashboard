@@ -1782,13 +1782,12 @@ select.fin-input option { background: #111113; color: #FAFAFA; }
   #page-gym .container {
     max-width: 1280px;
     display: grid;
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: 1fr;
     gap: 24px;
     align-items: start;
   }
   #page-gym .gym-header-strip { grid-column: 1 / -1; }
   #page-gym .gym-main-col { grid-column: 1; display: flex; flex-direction: column; gap: 16px; }
-  #page-gym .gym-side-col { grid-column: 2; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; }
 }
 /* 1280px+: coach and queue side by side */
 @media (min-width: 1280px) {
