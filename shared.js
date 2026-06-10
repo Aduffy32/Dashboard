@@ -494,6 +494,7 @@ function bootApp(user) {
 
 // ── Auth ───────────────────────────────────────────────────
 async function initAuth() {
+  try {
   if (!useSupabase) {
     // Fallback: no auth, use localStorage
     document.getElementById('authOverlay').classList.add('hidden');
@@ -540,6 +541,8 @@ async function initAuth() {
     try { await loadAllFromSupabase(); } catch (_) {}
     setSyncing(false);
     bootApp(existingSession.user);
+  } else {
+    document.getElementById('authOverlay')?.classList.remove('hidden');
   }
 
   db.auth.onAuthStateChange(async (event, session) => {
@@ -560,6 +563,10 @@ async function initAuth() {
       document.getElementById('authOverlay').classList.remove('hidden');
     }
   });
+  } catch (err) {
+    console.error('initAuth failed:', err);
+    document.getElementById('authOverlay')?.classList.remove('hidden');
+  }
 }
 
 // ── Habit Tracker ─────────────────────────────────────────
@@ -6133,4 +6140,5 @@ function initMountainsBg() {
 }
 
 initMountainsBg();
+document.getElementById('authOverlay')?.classList.remove('hidden');
 initAuth();
