@@ -324,10 +324,14 @@
     _getTodayKey    = getTodayKey    || null;
     _getWorkoutDone = getWorkoutDone || null;
     if (!_initialized) {
-      buildCard();
       _initialized = true;
+      requestAnimationFrame(() => {
+        buildCard();
+        updateMuscleMap();
+      });
+    } else {
+      updateMuscleMap();
     }
-    updateMuscleMap();
   };
 
   // Called from switchTab when gym tab is activated
