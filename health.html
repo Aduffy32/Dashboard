@@ -651,7 +651,8 @@ var peakStrainBaseline = null; // rolling average day strain
 // ── Strain-fatigue tuning knobs ──
 var PEAK_ADREN_COVER     = 1.0;  // hours after a session before fatigue starts (adrenaline window)
 var PEAK_FATIGUE_RISE    = 1.3;  // hours for fatigue to ramp in once cover ends
-var PEAK_STRAIN_MAX_DRAG = 15;   // max energy points a maximal (~strain 18) session removes
+var PEAK_STRAIN_MAX_DRAG     = 15;   // max energy points a maximal (~strain 18) session removes
+var PEAK_HYDRATION_MAX_DRAG  = 7;    // max energy points from being severely under water goal
 
 function peakRecScale() {
   var r = cafRecoveryScore !== null ? cafRecoveryScore : 70;
@@ -697,6 +698,55 @@ function peakStrainDragAt(h) {
   return Math.min(1, excess / 8) * PEAK_STRAIN_MAX_DRAG * 0.6 * ramp;
 }
 
+function peakHabitualCaffeine() {
+  try {
+    var logs = cafGetLogs();
+    if (!logs || !logs.length) return null;
+    var cutoff = Date.now() - 14*86400000;
+    var byDay = {};
+    logs.forEach(function(l){
+      var t = l.ts ? new Date(l.ts).getTime() : null;
+      if (t == null || t < cutoff) return;
+      var key = l.date || new Date(t).toDateString();
+      byDay[key] = (byDay[key] || 0) + (l.mg || 0);
+    });
+    var vals = Object.keys(byDay).map(function(k){ return byDay[k]; });
+    if (!vals.length) return null;
+    return vals.reduce(function(a,b){ return a+b; }, 0) / vals.length;
+  } catch (e) { return null; }
+}
+
+function peakCaffSensitivity() {
+  var hab = peakHabitualCaffeine();
+  if (hab == null) return 1;
+  return Math.max(0.55, Math.min(1, 1 - (hab - 100)/700));
+}
+
+function peakHydrationDragAt(h) {
+  try {
+    if (typeof waterLoad !== 'function') return 0;
+    var w = waterLoad();
+    var intake = (w && w.entries) ? w.entries.reduce(function(s,e){ return s + (e.amount||0); }, 0) : 0;
+    var goal = 0;
+    if (typeof calcWaterGoal === 'function' && typeof wtLoad === 'function') {
+      var arr = wtLoad();
+      var wt = (arr && arr.length) ? arr[arr.length-1].weight : null;
+      if (!wt) return 0;
+      var strain = (typeof whoopConnected !== 'undefined' && whoopConnected && whoopCache && whoopCache.cycle && whoopCache.cycle.score && typeof whoopCache.cycle.score.strain === 'number') ? whoopCache.cycle.score.strain : null;
+      var trained = false;
+      try { var gs = loadGymState(); trained = !!(gs.workoutDone && gs.workoutDone[getActiveDateString()]); } catch (e) {}
+      var g = calcWaterGoal({ weightKg: wt, trainedToday: trained, whoopStrain: strain });
+      goal = g && g.total ? g.total : 0;
+    }
+    if (!goal) return 0;
+    var deficit = Math.max(0, 1 - intake/goal);
+    if (deficit <= 0.15) return 0;
+    var awake = Math.max(0, h - cafWakeHour);
+    var ramp  = Math.min(1, awake / 8);
+    return Math.min(1, (deficit - 0.15)/0.85) * PEAK_HYDRATION_MAX_DRAG * ramp;
+  } catch (e) { return 0; }
+}
+
 function peakCaffNet(logs, h) {
   var ms  = cafMsAtHour(h);
   var cur = cafTotalMgAt(logs, ms);
@@ -705,7 +755,7 @@ function peakCaffNet(logs, h) {
     var b = cafTotalMgAt(logs, cafMsAtHour(h - dt));
     if (b > mx) mx = b;
   }
-  var boost   = Math.min(22, cur * 0.14);
+  var boost   = Math.min(22, cur * 0.14 * peakCaffSensitivity());
   var rebound = Math.min(13, Math.max(0, mx - cur) * 0.10);
   return boost - rebound;
 }
@@ -714,7 +764,7 @@ function peakEnergyRawAt(logs, h) {
   var rs   = peakRecScale();
   var base = Math.min(Math.max(peakCircadianShape(h, cafWakeHour, cafBedHour) * 100 * rs, 1), 100);
   var caf  = peakCaffNet(logs, h);
-  return Math.min(Math.max(base + caf - peakStrainDragAt(h), 1), 100);
+  return Math.min(Math.max(base + caf - peakStrainDragAt(h) - peakHydrationDragAt(h), 1), 100);
 }
 
 var PEAK_STATES = [
