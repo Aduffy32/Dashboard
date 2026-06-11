@@ -212,6 +212,11 @@
 .peak-feel-slider::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#fff; border:2px solid #6BE3A4; cursor:pointer; }
 .peak-feel-slider::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:#fff; border:2px solid #6BE3A4; cursor:pointer; }
 .peak-feel-pct { font-family:ui-monospace,monospace; font-size:11px; font-weight:700; color:var(--text-primary); min-width:36px; text-align:right; }
+.peak-state-anchor { font-family:ui-monospace,monospace; font-size:8.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-tertiary); }
+.peak-state-row { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+.peak-state-chip { padding:5px 11px; border-radius:999px; font-family:ui-monospace,monospace; font-size:11px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:var(--text-secondary); cursor:pointer; transition:all 0.15s; -webkit-tap-highlight-color:transparent; }
+.peak-state-chip.sel { background:rgba(255,255,255,0.06); border-color:currentColor; font-weight:700; }
+.peak-state-prog { font-family:ui-monospace,monospace; font-size:8.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); margin-top:7px; }
 </style>
 <link rel="manifest" href="manifest.webmanifest" />
 <meta name="mobile-web-app-capable" content="yes" />
@@ -247,7 +252,7 @@
   <!-- Tab switcher -->
   <div class="hlth-tab-bar" id="hlthTabBar">
     <button class="hlth-tab-btn active" data-panel="recovery">Recovery</button>
-    <button class="hlth-tab-btn" data-panel="caffeine">Caffeine</button>
+    <button class="hlth-tab-btn" data-panel="caffeine">Peak</button>
     <button class="hlth-tab-btn" data-panel="hydration">Hydration</button>
   </div>
 
@@ -298,12 +303,7 @@
                 <span class="peak-input-val" id="peakCafVal">—</span>
               </div>
             </div>
-            <!-- Feel slider -->
-            <div class="peak-feel-row">
-              <span class="peak-input-lbl">HOW I FEEL</span>
-              <input type="range" class="peak-feel-slider" id="peakFeelSlider" min="0" max="100" value="50">
-              <span class="peak-feel-pct" id="peakFeelPct">50%</span>
-            </div>
+            <div class="peak-state-wrap" id="peakStateWrap"></div>
           </div>
         </div>
         <div class="caf-chart-hint" style="margin-top:12px;">Hover or drag the curve</div>
@@ -643,7 +643,6 @@ function cafMsAtHour(h) {
 }
 
 // ── Peak circadian model (two-process: sleep inertia + homeostatic pressure + circadian rhythm) ──
-var peakFeelOverride = null; // set by the feel slider, null = no override
 var peakSleepDebt = 0;       // computed from Whoop history on sync
 
 function peakRecScale() {
@@ -681,11 +680,61 @@ function peakCaffNet(logs, h) {
   return boost - rebound;
 }
 
-function peakEnergyAt(logs, h) {
+function peakEnergyRawAt(logs, h) {
   var rs   = peakRecScale();
   var base = Math.min(Math.max(peakCircadianShape(h, cafWakeHour, cafBedHour) * 100 * rs, 1), 100);
   var caf  = peakCaffNet(logs, h);
   return Math.min(Math.max(base + caf, 1), 100);
+}
+
+var PEAK_STATES = [
+  {k:'drained',label:'Drained',val:14,c:'#FF6B6B'},
+  {k:'foggy',  label:'Foggy',  val:36,c:'#F2C063'},
+  {k:'steady', label:'Steady', val:56,c:'#6BE3A4'},
+  {k:'sharp',  label:'Sharp',  val:76,c:'#6BE3A4'},
+  {k:'wired',  label:'Wired',  val:90,c:'#C9A36B'}
+];
+
+function peakLoadFeel() {
+  try { return JSON.parse(localStorage.getItem('peak:feel')) || {checks:[]}; } catch(e) { return {checks:[]}; }
+}
+function peakSaveFeel(f) { localStorage.setItem('peak:feel', JSON.stringify(f)); }
+
+function peakBucket(hr) { hr = ((hr%24)+24)%24; return hr<12?'m':hr<17?'a':'e'; }
+
+function peakFeelDays() {
+  var f = peakLoadFeel(), seen = {};
+  f.checks.forEach(function(c){ seen[new Date(c.t).toLocaleDateString()] = 1; });
+  return Object.keys(seen).length;
+}
+
+function peakCalibStrength() { return Math.min(1, peakFeelDays()/30); }
+
+function peakBiasGlobal() {
+  var f = peakLoadFeel();
+  if (f.checks.length < 3) return 0;
+  var sum = f.checks.reduce(function(s,c){ return s+(c.val-c.pred); }, 0);
+  return Math.min(25, Math.max(-25, sum/f.checks.length));
+}
+
+function peakBiasAt(h) {
+  var f = peakLoadFeel();
+  if (f.checks.length < 3) return 0;
+  var b = peakBucket(h);
+  var bucket = f.checks.filter(function(c){
+    var ch = new Date(c.t); return peakBucket(ch.getHours()+ch.getMinutes()/60) === b;
+  });
+  if (bucket.length >= 2) {
+    var sum = bucket.reduce(function(s,c){ return s+(c.val-c.pred); }, 0);
+    return Math.min(25, Math.max(-25, sum/bucket.length));
+  }
+  return peakBiasGlobal();
+}
+
+function peakPersonalAdjAt(h) { return peakBiasAt(h) * peakCalibStrength(); }
+
+function peakEnergyAt(logs, h) {
+  return Math.min(Math.max(peakEnergyRawAt(logs, h) + peakPersonalAdjAt(h), 1), 100);
 }
 
 function cafComputeCurve(logs) {
@@ -694,18 +743,6 @@ function cafComputeCurve(logs) {
     var h = i * 24 / N;
     curve.push(peakEnergyAt(logs, h));
     base.push(Math.min(Math.max(peakCircadianShape(h, cafWakeHour, cafBedHour) * 100 * peakRecScale(), 1), 100));
-  }
-  // Blend feel override if set (30% pull toward slider value)
-  if (peakFeelOverride !== null) {
-    var nowH = new Date().getHours() + new Date().getMinutes() / 60;
-    var nowIdx = Math.min(Math.round(nowH * 6), 143);
-    var predicted = curve[nowIdx];
-    var diff = peakFeelOverride - predicted;
-    for (var j = 0; j < N; j++) {
-      var h2 = j * 24 / N;
-      var proximity = Math.exp(-Math.pow(h2 - nowH, 2) / (2 * 1.5 * 1.5));
-      curve[j] = Math.min(Math.max(curve[j] + diff * 0.30 * proximity, 1), 100);
-    }
   }
   return { curve: curve, base: base };
 }
@@ -979,12 +1016,67 @@ function cafEscHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function peakAddFeel(stateKey) {
+  var state = null;
+  for (var i=0; i<PEAK_STATES.length; i++) { if (PEAK_STATES[i].k===stateKey) { state=PEAK_STATES[i]; break; } }
+  if (!state) return;
+  var now = new Date(), nowH = now.getHours()+now.getMinutes()/60;
+  var logs = cafGetTodayLogs();
+  var pred = Math.round(peakEnergyRawAt(logs, nowH));
+  var f = peakLoadFeel();
+  var last = f.checks[f.checks.length-1];
+  var nowMs = Date.now();
+  var sameDate = function(a,b){ return new Date(a).toLocaleDateString()===new Date(b).toLocaleDateString(); };
+  if (last && (nowMs-last.t)<20*60000 && sameDate(last.t, nowMs)) {
+    last.state=stateKey; last.val=state.val; last.pred=pred; last.t=nowMs;
+  } else {
+    f.checks.push({t:nowMs, state:stateKey, val:state.val, pred:pred});
+  }
+  if (f.checks.length>2000) f.checks=f.checks.slice(f.checks.length-2000);
+  peakSaveFeel(f);
+  cafRerender();
+}
+
+function peakLatestFeelToday() {
+  var f = peakLoadFeel(), today = new Date().toLocaleDateString();
+  for (var i=f.checks.length-1; i>=0; i--) {
+    if (new Date(f.checks[i].t).toLocaleDateString()===today) return f.checks[i];
+  }
+  return null;
+}
+
+function peakRenderStatePicker() {
+  var wrap = document.getElementById('peakStateWrap');
+  if (!wrap) return;
+  var now = new Date(), nowH = now.getHours()+now.getMinutes()/60;
+  var logs = typeof cafGetTodayLogs === 'function' ? cafGetTodayLogs() : [];
+  var predE = Math.round(peakEnergyRawAt(logs, nowH));
+  var predState = PEAK_STATES[0], minDist = 999;
+  for (var i=0; i<PEAK_STATES.length; i++) {
+    var d = Math.abs(PEAK_STATES[i].val - predE);
+    if (d < minDist) { minDist=d; predState=PEAK_STATES[i]; }
+  }
+  var sel = peakLatestFeelToday();
+  var days = peakFeelDays();
+  var prog = days>=30 ? 'Tuned to you ✓' : days>0 ? 'Building your model · '+days+'/30 days' : 'Tap how you feel — I tailor your curve over 30 days';
+  wrap.innerHTML =
+    '<div class="peak-state-anchor">Model says: <b style="color:'+predState.c+'">'+predState.label+'</b> right now</div>'+
+    '<div class="peak-state-row">'+
+      PEAK_STATES.map(function(s){
+        var isSel = sel && sel.state===s.k;
+        return '<button class="peak-state-chip'+(isSel?' sel':'')+'" data-state="'+s.k+'" style="color:'+s.c+'">'+s.label+'</button>';
+      }).join('')+
+    '</div>'+
+    '<div class="peak-state-prog">'+prog+'</div>';
+}
+
 function cafRerender() {
   var logs = cafGetTodayLogs();
   cafRenderHero(logs);
   cafRenderTiming(logs);
   cafRenderToday(logs);
   cafRenderLoggedToday(logs);
+  peakRenderStatePicker();
 }
 
 function cafLogDrink(name, mg, emoji) {
@@ -1081,18 +1173,11 @@ function cafBindEvents() {
       cafAttachChartEvents(cafCurveCache.curve);
     }
   });
-  var feelSlider = document.getElementById('peakFeelSlider');
-  var feelPct    = document.getElementById('peakFeelPct');
-  if (feelSlider) {
-    feelSlider.addEventListener('input', function() {
-      if (feelPct) feelPct.textContent = this.value + '%';
-    });
-    feelSlider.addEventListener('change', function() {
-      peakFeelOverride = parseInt(this.value, 10);
-      if (feelPct) feelPct.textContent = this.value + '%';
-      cafRerender();
-    });
-  }
+  var stateWrap = document.getElementById('peakStateWrap');
+  if (stateWrap) stateWrap.addEventListener('click', function(e){
+    var btn = e.target.closest('.peak-state-chip');
+    if (btn) peakAddFeel(btn.dataset.state);
+  });
 }
 
 function cafHealthInit() {
