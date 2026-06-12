@@ -166,6 +166,54 @@
   white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
+/* ── Time Modal ──────────────────────────────────────────── */
+.caf-modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.caf-modal-overlay.hidden { display: none; }
+.caf-modal-card {
+  background: #111113; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px; padding: 24px; width: 100%; max-width: 340px;
+  position: relative; box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+}
+.caf-modal-close {
+  position: absolute; top: 14px; right: 14px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-tertiary); font-size: 20px; padding: 4px 8px;
+  line-height: 1; transition: color 0.2s;
+}
+.caf-modal-close:hover { color: var(--text-primary); }
+.caf-modal-drink-info {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+}
+.caf-modal-em { font-size: 32px; flex-shrink: 0; }
+.caf-modal-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+.caf-modal-mg-badge { font-family: ui-monospace,monospace; font-size: 12px; color: #C9A36B; font-weight: 700; }
+.caf-modal-lbl {
+  display: block; font-family: ui-monospace,monospace; font-size: 8.5px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary);
+  margin-bottom: 8px;
+}
+.caf-modal-time-row { margin-bottom: 16px; }
+.caf-time-input {
+  width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-primary);
+  font-size: 20px; font-family: ui-monospace,monospace; outline: none;
+  font-weight: 600; letter-spacing: 0.06em; text-align: center; box-sizing: border-box;
+}
+.caf-time-input:focus { border-color: rgba(201,163,107,0.4); }
+.caf-modal-footer { display: flex; gap: 8px; }
+.caf-modal-cancel {
+  flex: 1; padding: 11px 14px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+  color: var(--text-secondary); font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: background 0.15s;
+}
+.caf-modal-cancel:hover { background: rgba(255,255,255,0.08); }
+
 /* ── Logged Today ───────────────────────────────────────── */
 .caf-log-item {
   display: flex; align-items: center; gap: 10px; padding: 12px 14px;
@@ -306,6 +354,28 @@
   </div><!-- .container -->
 </div><!-- #appContainer -->
 
+<!-- ── Time picker modal ──────────────────────────────────── -->
+<div class="caf-modal-overlay hidden" id="cafTimeModal">
+  <div class="caf-modal-card">
+    <button class="caf-modal-close" id="cafModalClose" aria-label="Close">×</button>
+    <div class="caf-modal-drink-info">
+      <span class="caf-modal-em" id="cafModalEm">☕</span>
+      <div>
+        <div class="caf-modal-name" id="cafModalName"></div>
+        <div class="caf-modal-mg-badge" id="cafModalMgBadge"></div>
+      </div>
+    </div>
+    <div class="caf-modal-time-row">
+      <label class="caf-modal-lbl" for="cafTimeInput">When did you have this?</label>
+      <input type="time" class="caf-time-input" id="cafTimeInput">
+    </div>
+    <div class="caf-modal-footer">
+      <button class="caf-modal-cancel" id="cafModalCancel">Cancel</button>
+      <button class="caf-add-btn" id="cafModalConfirm" style="flex:2;padding:11px 18px;font-size:13px;">Log Drink</button>
+    </div>
+  </div>
+</div>
+
 <script src="lock.js"></script>
 <script src="topbar.js"></script>
 <script src="sync.js"></script>
@@ -330,6 +400,7 @@ var recoveryScore = null;
 var chartMode    = 'LINE';
 var curveCache   = null; // { curve, base }
 var cloudSync    = null;
+var pendingDrink = null;
 
 // ── Drink database ─────────────────────────────────────────
 var DRINKS = [
@@ -865,11 +936,49 @@ function rerender() {
 }
 
 // ── Log a drink ────────────────────────────────────────────
-function logDrink(name, mg, emoji) {
+function logDrink(name, mg, emoji, ts) {
   var all = getLogs();
-  all.push({ id: newId(), name: name, mg: mg, emoji: emoji, ts: new Date().toISOString(), date: todayStr() });
+  var entryTs = ts || new Date().toISOString();
+  var d = new Date(entryTs);
+  var dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  all.push({ id: newId(), name: name, mg: mg, emoji: emoji, ts: entryTs, date: dateStr });
   saveLogs(all);
   rerender();
+}
+
+// ── Time modal ─────────────────────────────────────────────
+function showTimeModal(name, mg, emoji) {
+  pendingDrink = { name: name, mg: mg, emoji: emoji };
+  var now = new Date();
+  document.getElementById('cafModalEm').textContent   = emoji || '☕';
+  document.getElementById('cafModalName').textContent = name;
+  document.getElementById('cafModalMgBadge').textContent = mg + ' mg';
+  document.getElementById('cafTimeInput').value =
+    String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('cafTimeModal').classList.remove('hidden');
+  setTimeout(function(){ document.getElementById('cafTimeInput').focus(); }, 50);
+}
+
+function hideTimeModal() {
+  pendingDrink = null;
+  document.getElementById('cafTimeModal').classList.add('hidden');
+}
+
+function confirmModalLog() {
+  if (!pendingDrink) return;
+  var timeVal = document.getElementById('cafTimeInput').value; // "HH:MM"
+  var ts;
+  if (timeVal) {
+    var parts = timeVal.split(':');
+    var d = new Date();
+    d.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+    if (d.getTime() > Date.now()) d = new Date(); // clamp future times to now
+    ts = d.toISOString();
+  } else {
+    ts = new Date().toISOString();
+  }
+  logDrink(pendingDrink.name, pendingDrink.mg, pendingDrink.emoji, ts);
+  hideTimeModal();
 }
 
 function deleteLog(id) {
@@ -918,19 +1027,19 @@ function readWeightKg() {
 
 // ── Event bindings ─────────────────────────────────────────
 function bindEvents() {
-  // Drink grid clicks (delegated)
+  // Drink grid clicks (delegated) — open time modal
   var dg = document.getElementById('cafDrinkGrid');
   if (dg) dg.addEventListener('click', function(e){
     var btn = e.target.closest('.caf-drink-btn');
     if (!btn) return;
-    logDrink(btn.dataset.name, parseInt(btn.dataset.mg, 10), btn.dataset.emoji);
+    showTimeModal(btn.dataset.name, parseInt(btn.dataset.mg, 10), btn.dataset.emoji);
   });
 
   // Search
   var search = document.getElementById('cafSearch');
   if (search) search.addEventListener('input', function(){ renderDrinkGrid(this.value); });
 
-  // Custom add
+  // Custom add — save drink then open time modal
   var customBtn = document.getElementById('cafCustomBtn');
   if (customBtn) customBtn.addEventListener('click', function(){
     var name = (document.getElementById('cafCustomName').value || '').trim();
@@ -939,10 +1048,10 @@ function bindEvents() {
     var custom = getCustom();
     custom.push({ name: name, mg: mg, emoji: '☕' });
     saveCustom(custom);
-    logDrink(name, mg, '☕');
     document.getElementById('cafCustomName').value = '';
     document.getElementById('cafCustomMg').value   = '';
     renderDrinkGrid(document.getElementById('cafSearch').value);
+    showTimeModal(name, mg, '☕');
   });
 
   // Enter key on custom inputs
@@ -956,6 +1065,21 @@ function bindEvents() {
   if (ll) ll.addEventListener('click', function(e){
     var btn = e.target.closest('.caf-log-del');
     if (btn) deleteLog(btn.dataset.id);
+  });
+
+  // Time modal
+  document.getElementById('cafModalClose').addEventListener('click', hideTimeModal);
+  document.getElementById('cafModalCancel').addEventListener('click', hideTimeModal);
+  document.getElementById('cafModalConfirm').addEventListener('click', confirmModalLog);
+  document.getElementById('cafTimeModal').addEventListener('click', function(e){
+    if (e.target === this) hideTimeModal();
+  });
+  document.getElementById('cafTimeInput').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') confirmModalLog();
+    if (e.key === 'Escape') hideTimeModal();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') hideTimeModal();
   });
 
   // Mode toggle
