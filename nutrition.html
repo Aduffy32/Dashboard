@@ -27,6 +27,20 @@
 .nutr-tpl-del { appearance:none; padding:7px 10px; border-radius:999px; border:1px solid rgba(255,255,255,0.08); background:transparent; color:var(--text-tertiary); font-size:12px; cursor:pointer; }
 .nutr-tpl-del:hover { color:#FF6B6B; border-color:rgba(255,107,107,0.3); }
 .nutr-tpl-empty { text-align:center; padding:32px 16px; color:var(--text-tertiary); font-size:13px; line-height:1.6; }
+.nutr-fs-wrap { margin-bottom:14px; }
+.nutr-fs-inputrow { position:relative; }
+.nutr-fs-spinner { position:absolute; right:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; border:2px solid rgba(255,255,255,0.15); border-top-color:#6BE3A4; border-radius:50%; animation:nutrFsSpin 0.7s linear infinite; }
+@keyframes nutrFsSpin { to { transform:translateY(-50%) rotate(360deg); } }
+.nutr-fs-results { max-height:200px; overflow-y:auto; margin-top:8px; display:flex; flex-direction:column; gap:6px; }
+.nutr-fs-chip { text-align:left; appearance:none; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.07); background:rgba(255,255,255,0.03); color:var(--text-primary); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; line-height:1.3; }
+.nutr-fs-chip:hover { background:rgba(107,227,164,0.1); border-color:rgba(107,227,164,0.28); }
+.nutr-fs-chip-meta { display:block; margin-top:2px; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:10px; color:var(--text-tertiary); font-weight:500; }
+.nutr-fs-empty { padding:14px; text-align:center; color:var(--text-tertiary); font-size:12px; }
+.nutr-fs-grams { display:flex; align-items:center; gap:10px; margin-top:8px; }
+.nutr-fs-grams-label { font-size:11px; font-weight:700; color:var(--text-secondary); white-space:nowrap; }
+.nutr-fs-grams-in { flex:1; }
+.nutr-fs-clear { appearance:none; padding:8px 12px; border-radius:999px; border:1px solid rgba(255,255,255,0.08); background:transparent; color:var(--text-tertiary); font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; }
+.nutr-fs-clear:hover { color:#FF6B6B; border-color:rgba(255,107,107,0.3); }
 </style>
 </head>
 <body class="grain-overlay">
@@ -152,6 +166,19 @@
   <div class="nutr-modal-bg"></div>
   <div class="nutr-modal-box">
     <div class="nutr-modal-title" id="nutrMModalTitle">Log Meal</div>
+    <div class="nutr-fs-wrap">
+      <label class="nutr-modal-lbl">Search food (optional)</label>
+      <div class="nutr-fs-inputrow">
+        <input class="nutr-modal-in nutr-fs-input" id="nutrFsInput" type="text" placeholder="e.g. greek yogurt" autocomplete="off">
+        <div class="nutr-fs-spinner" id="nutrFsSpinner" hidden></div>
+      </div>
+      <div class="nutr-fs-results" id="nutrFsResults" hidden></div>
+      <div class="nutr-fs-grams" id="nutrFsGrams" hidden>
+        <span class="nutr-fs-grams-label">Amount (g)</span>
+        <input class="nutr-modal-in nutr-fs-grams-in" id="nutrFsGramsIn" type="number" min="0" step="1" value="100">
+        <button type="button" class="nutr-fs-clear" id="nutrFsClear">Clear</button>
+      </div>
+    </div>
     <label class="nutr-modal-lbl">Meal Name</label>
     <input class="nutr-modal-in" id="nutrMName" type="text" placeholder="e.g. Breakfast, Lunch, Snack, Dinner" autocomplete="off">
     <label class="nutr-modal-lbl">Time</label>
@@ -307,6 +334,101 @@ function tplSaveCurrent() {
   tplSave(templates);
   tplRender();
 }
+
+(function(){
+  const input = document.getElementById('nutrFsInput');
+  const spinner = document.getElementById('nutrFsSpinner');
+  const results = document.getElementById('nutrFsResults');
+  const gramsWrap = document.getElementById('nutrFsGrams');
+  const gramsIn = document.getElementById('nutrFsGramsIn');
+  const clearBtn = document.getElementById('nutrFsClear');
+  if (!input) return;
+  let per100 = null; // {name, desc, kcal, pro, carb, fat}
+  let timer = null;
+
+  function setFields() {
+    if (!per100) return;
+    const g = Math.max(0, parseFloat(gramsIn.value) || 0);
+    const k = g / 100;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = Math.round(v * k); };
+    const n = document.getElementById('nutrMName'); if (n && !n.value) n.value = per100.name;
+    const d = document.getElementById('nutrMDesc'); if (d) d.value = per100.desc;
+    set('nutrMCal', per100.kcal);
+    set('nutrMPro', per100.pro);
+    set('nutrMCarb', per100.carb);
+    set('nutrMFat', per100.fat);
+  }
+
+  function resetSearch() {
+    per100 = null;
+    results.hidden = true; results.innerHTML = '';
+    gramsWrap.hidden = true;
+    input.value = '';
+  }
+
+  async function runSearch(q) {
+    spinner.hidden = false;
+    try {
+      const url = 'https://world.openfoodfacts.org/cgi/search.pl?search_terms=' +
+        encodeURIComponent(q) +
+        '&search_simple=1&action=process&json=1&page_size=10' +
+        '&fields=product_name,brands,nutriments';
+      const res = await fetch(url);
+      const data = await res.json();
+      const items = (data.products || []).filter(p => p.product_name && p.nutriments && p.nutriments['energy-kcal_100g'] != null);
+      renderResults(items);
+    } catch (e) {
+      results.hidden = false;
+      results.innerHTML = '<div class="nutr-fs-empty">Search failed. Try again or enter manually.</div>';
+    } finally {
+      spinner.hidden = true;
+    }
+  }
+
+  function renderResults(items) {
+    results.hidden = false;
+    if (!items.length) {
+      results.innerHTML = '<div class="nutr-fs-empty">No results. Enter manually below.</div>';
+      return;
+    }
+    results.innerHTML = '';
+    items.forEach(p => {
+      const nu = p.nutriments;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'nutr-fs-chip';
+      const kcal = Math.round(nu['energy-kcal_100g'] || 0);
+      const brand = p.brands ? p.brands.split(',')[0].trim() : '';
+      btn.innerHTML = (p.product_name) +
+        '<span class="nutr-fs-chip-meta">' + (brand ? brand + ' · ' : '') + kcal + ' kcal / 100g</span>';
+      btn.addEventListener('click', () => {
+        per100 = {
+          name: p.product_name,
+          desc: brand || p.product_name,
+          kcal: nu['energy-kcal_100g'] || 0,
+          pro: nu['proteins_100g'] || 0,
+          carb: nu['carbohydrates_100g'] || 0,
+          fat: nu['fat_100g'] || 0
+        };
+        input.value = p.product_name;
+        results.hidden = true;
+        gramsWrap.hidden = false;
+        gramsIn.value = '100';
+        setFields();
+      });
+      results.appendChild(btn);
+    });
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearTimeout(timer);
+    if (q.length < 2) { results.hidden = true; return; }
+    timer = setTimeout(() => runSearch(q), 400);
+  });
+  gramsIn.addEventListener('input', setFields);
+  clearBtn.addEventListener('click', resetSearch);
+})();
 
 document.getElementById('nutrTplBtn')?.addEventListener('click', tplOpen);
 document.getElementById('nutrTplBack')?.addEventListener('click', () => document.getElementById('nutrTplPanel').classList.remove('open'));

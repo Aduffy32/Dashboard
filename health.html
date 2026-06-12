@@ -217,6 +217,54 @@
 .peak-state-chip { padding:5px 11px; border-radius:999px; font-family:ui-monospace,monospace; font-size:11px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:var(--text-secondary); cursor:pointer; transition:all 0.15s; -webkit-tap-highlight-color:transparent; }
 .peak-state-chip.sel { background:rgba(255,255,255,0.06); border-color:currentColor; font-weight:700; }
 .peak-state-prog { font-family:ui-monospace,monospace; font-size:8.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); margin-top:7px; }
+
+/* ── Caffeine time modal ──────────────────────────────────────── */
+.caf-modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.caf-modal-overlay.hidden { display: none; }
+.caf-modal-card {
+  background: #111113; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px; padding: 24px; width: 100%; max-width: 340px;
+  position: relative; box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+}
+.caf-modal-close {
+  position: absolute; top: 14px; right: 14px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-tertiary); font-size: 20px; padding: 4px 8px;
+  line-height: 1; transition: color 0.2s;
+}
+.caf-modal-close:hover { color: var(--text-primary); }
+.caf-modal-drink-info {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+}
+.caf-modal-em { font-size: 32px; flex-shrink: 0; }
+.caf-modal-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+.caf-modal-mg-badge { font-family: ui-monospace,monospace; font-size: 12px; color: #C9A36B; font-weight: 700; }
+.caf-modal-lbl {
+  display: block; font-family: ui-monospace,monospace; font-size: 8.5px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary);
+  margin-bottom: 8px;
+}
+.caf-modal-time-row { margin-bottom: 16px; }
+.caf-time-input {
+  width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-primary);
+  font-size: 20px; font-family: ui-monospace,monospace; outline: none;
+  font-weight: 600; letter-spacing: 0.06em; text-align: center; box-sizing: border-box;
+}
+.caf-time-input:focus { border-color: rgba(201,163,107,0.4); }
+.caf-modal-footer { display: flex; gap: 8px; }
+.caf-modal-cancel {
+  flex: 1; padding: 11px 14px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+  color: var(--text-secondary); font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: background 0.15s;
+}
+.caf-modal-cancel:hover { background: rgba(255,255,255,0.08); }
 </style>
 <link rel="manifest" href="manifest.webmanifest" />
 <meta name="mobile-web-app-capable" content="yes" />
@@ -365,6 +413,28 @@
       <div id="cafLoggedList"></div>
     </div>
   </div>
+
+<!-- ── Caffeine time picker modal ──────────────────────────────── -->
+<div class="caf-modal-overlay hidden" id="cafTimeModal">
+  <div class="caf-modal-card">
+    <button class="caf-modal-close" id="cafModalClose" aria-label="Close">×</button>
+    <div class="caf-modal-drink-info">
+      <span class="caf-modal-em" id="cafModalEm">☕</span>
+      <div>
+        <div class="caf-modal-name" id="cafModalName"></div>
+        <div class="caf-modal-mg-badge" id="cafModalMgBadge"></div>
+      </div>
+    </div>
+    <div class="caf-modal-time-row">
+      <label class="caf-modal-lbl" for="cafTimeInput">When did you have this?</label>
+      <input type="time" class="caf-time-input" id="cafTimeInput">
+    </div>
+    <div class="caf-modal-footer">
+      <button class="caf-modal-cancel" id="cafModalCancel">Cancel</button>
+      <button class="caf-add-btn" id="cafModalConfirm" style="flex:2;padding:11px 18px;font-size:13px;">Log Drink</button>
+    </div>
+  </div>
+</div>
 
   <!-- Hydration + Supplements panel -->
   <div id="hydrationPanel" class="hlth-panel"></div>
@@ -578,6 +648,7 @@ var cafRecoveryScore = null;
 var cafChartMode     = 'LINE';
 var cafCurveCache    = null;
 var cafHealthInitDone = false;
+var cafPendingDrink = null;
 
 var CAF_DRINKS = [
   {name:'Espresso (single)',mg:63,emoji:'☕'},{name:'Espresso (double)',mg:126,emoji:'☕'},
@@ -1060,7 +1131,8 @@ function cafRenderDrinkGrid(query) {
   if (!grid) return;
   var all = CAF_DRINKS.concat(cafGetCustom());
   var q = (query || '').toLowerCase().trim();
-  var shown = q ? all.filter(function(d){ return d.name.toLowerCase().includes(q)||(d.emoji||'').includes(q); }) : all;
+  if (!q) { grid.innerHTML = ''; return; }
+  var shown = all.filter(function(d){ return d.name.toLowerCase().includes(q)||(d.emoji||'').includes(q); });
   if (!shown.length) { grid.innerHTML = '<div class="caf-empty" style="grid-column:1/-1;">No drinks match "'+query+'"</div>'; return; }
   grid.innerHTML = shown.map(function(d,i){
     return '<button class="caf-drink-btn" data-idx="'+i+'" data-name="'+cafEscHtml(d.name)+'" data-mg="'+d.mg+'" data-emoji="'+(d.emoji||'☕')+'">'+
@@ -1166,6 +1238,30 @@ function cafLogDrink(name, mg, emoji) {
   cafRerender();
 }
 
+function cafLogDrinkAt(name, mg, emoji, isoTs) {
+  var all = cafGetLogs();
+  all.push({ id: cafNewId(), name: name, mg: mg, emoji: emoji, ts: isoTs, date: cafTodayStr() });
+  cafSaveLogs(all);
+  cafRerender();
+}
+
+function cafOpenTimeModal(name, mg, emoji) {
+  cafPendingDrink = { name: name, mg: mg, emoji: emoji };
+  var now = new Date();
+  var hh = String(now.getHours()).padStart(2,'0');
+  var mm = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('cafModalEm').textContent = emoji || '☕';
+  document.getElementById('cafModalName').textContent = name;
+  document.getElementById('cafModalMgBadge').textContent = mg + ' mg';
+  document.getElementById('cafTimeInput').value = hh + ':' + mm;
+  document.getElementById('cafTimeModal').classList.remove('hidden');
+}
+
+function cafCloseTimeModal() {
+  cafPendingDrink = null;
+  document.getElementById('cafTimeModal').classList.add('hidden');
+}
+
 function cafDeleteLog(id) {
   cafSaveLogs(cafGetLogs().filter(function(l){ return l.id !== id; }));
   cafRerender();
@@ -1234,7 +1330,7 @@ function cafBindEvents() {
   if (dg) dg.addEventListener('click', function(e){
     var btn = e.target.closest('.caf-drink-btn');
     if (!btn) return;
-    cafLogDrink(btn.dataset.name, parseInt(btn.dataset.mg, 10), btn.dataset.emoji);
+    cafOpenTimeModal(btn.dataset.name, parseInt(btn.dataset.mg, 10), btn.dataset.emoji);
   });
   var search = document.getElementById('cafSearch');
   if (search) search.addEventListener('input', function(){ cafRenderDrinkGrid(this.value); });
@@ -1246,10 +1342,10 @@ function cafBindEvents() {
     var custom = cafGetCustom();
     custom.push({ name: name, mg: mg, emoji: '☕' });
     cafSaveCustom(custom);
-    cafLogDrink(name, mg, '☕');
     document.getElementById('cafCustomName').value = '';
     document.getElementById('cafCustomMg').value   = '';
     cafRenderDrinkGrid(document.getElementById('cafSearch').value);
+    cafOpenTimeModal(name, mg, '☕');
   });
   ['cafCustomName','cafCustomMg'].forEach(function(id){
     var el = document.getElementById(id);
@@ -1276,6 +1372,28 @@ function cafBindEvents() {
   if (stateWrap) stateWrap.addEventListener('click', function(e){
     var btn = e.target.closest('.peak-state-chip');
     if (btn) peakAddFeel(btn.dataset.state);
+  });
+  var timeModal = document.getElementById('cafTimeModal');
+  if (timeModal) timeModal.addEventListener('click', function(e){ if (e.target === timeModal) cafCloseTimeModal(); });
+  var modalClose = document.getElementById('cafModalClose');
+  if (modalClose) modalClose.addEventListener('click', cafCloseTimeModal);
+  var modalCancel = document.getElementById('cafModalCancel');
+  if (modalCancel) modalCancel.addEventListener('click', cafCloseTimeModal);
+  var modalConfirm = document.getElementById('cafModalConfirm');
+  if (modalConfirm) modalConfirm.addEventListener('click', function(){
+    if (!cafPendingDrink) return;
+    var val = document.getElementById('cafTimeInput').value;
+    var ts;
+    if (val) {
+      var parts = val.split(':');
+      var d = new Date();
+      d.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+      ts = d.toISOString();
+    } else {
+      ts = new Date().toISOString();
+    }
+    cafLogDrinkAt(cafPendingDrink.name, cafPendingDrink.mg, cafPendingDrink.emoji, ts);
+    cafCloseTimeModal();
   });
 }
 
