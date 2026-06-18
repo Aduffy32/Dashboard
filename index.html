@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -6,6 +6,9 @@
 <title>My Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="shared.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400..600&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.webmanifest" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -15,29 +18,75 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
 <style>
-@keyframes cardSlideIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes cardSlideIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Header ─────────────────────────────────────── */
+.home-head { margin-bottom: 22px; animation: cardSlideIn 0.5s var(--ease-out-expo) both; }
+.home-eyebrow { font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 10px; }
+.home-greet-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.home-greet { font-family: 'Fraunces', Georgia, serif; font-size: clamp(30px, 9vw, 44px); font-weight: 500; letter-spacing: -0.015em; line-height: 1.04; color: var(--text-primary); }
+.home-greet .gname { font-style: italic; font-weight: 500; }
+.home-avatar { width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--hairline); display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', serif; font-size: 21px; color: var(--text-secondary); flex-shrink: 0; background: rgba(255,255,255,0.03); cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.home-avatar:hover { border-color: rgba(255,255,255,0.22); color: var(--text-primary); }
+
+/* ── Generic accent card ────────────────────────── */
+.hc { position: relative; border-radius: 18px; padding: 18px; background: rgba(255,255,255,0.025);
+  border: 1px solid color-mix(in srgb, var(--ac, #ffffff) 32%, transparent);
+  box-shadow: 0 0 26px -14px color-mix(in srgb, var(--ac, #000000) 60%, transparent), 0 12px 32px rgba(0,0,0,0.42);
+  transition: transform 0.24s var(--ease-out-expo), box-shadow 0.24s var(--ease-out-expo), border-color 0.2s;
+  cursor: pointer; overflow: hidden; animation: cardSlideIn 0.5s var(--ease-out-expo) both; }
+.hc:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--ac, #ffffff) 52%, transparent); }
+.hc:active { transform: translateY(0); }
+.hc-eyebrow { font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: color-mix(in srgb, var(--ac, #ffffff) 68%, var(--text-tertiary)); }
+.hc-serif { font-family: 'Fraunces', Georgia, serif; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* ── Recovery hero ──────────────────────────────── */
+.rec-card { --ac: var(--success); padding: 18px 18px 14px; margin-bottom: 14px; }
+.rec-gauge-wrap { position: relative; width: 100%; max-width: 320px; margin: 0 auto; }
+.rec-gauge { width: 100%; display: block; }
+.rec-overlay { position: absolute; left: 0; right: 0; top: 36%; text-align: center; pointer-events: none; }
+.rec-overlay .hc-eyebrow { display: block; margin-bottom: 2px; }
+.rec-val { font-family: 'Fraunces', Georgia, serif; font-size: 60px; font-weight: 500; line-height: 0.9; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.rec-status { font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-style: italic; }
+
+/* ── Stat (HRV / RHR) cards ─────────────────────── */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.stat-card { --ac: var(--success); padding: 16px; }
+.stat-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.stat-trend { font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat-val-row { display: flex; align-items: baseline; gap: 5px; margin-top: 8px; }
+.stat-val { font-family: 'Fraunces', Georgia, serif; font-size: 38px; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.stat-unit { font-size: 13px; color: var(--text-tertiary); }
+.stat-spark { width: 100%; height: 30px; display: block; margin-top: 10px; overflow: visible; }
+.stat-foot { font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 10.5px; letter-spacing: 0.04em; color: var(--text-tertiary); margin-top: 10px; }
+
+/* ── Workout hex card ───────────────────────────── */
+.wo-card { --ac: var(--warning); position: relative; margin-bottom: 14px; cursor: pointer; animation: cardSlideIn 0.5s var(--ease-out-expo) both; filter: drop-shadow(0 14px 30px rgba(0,0,0,0.4)); }
+.wo-hex { clip-path: polygon(26px 0, calc(100% - 26px) 0, 100% 50%, calc(100% - 26px) 100%, 26px 100%, 0 50%); background: color-mix(in srgb, var(--ac) 50%, transparent); padding: 1.5px; transition: background 0.2s; }
+.wo-card:hover .wo-hex { background: color-mix(in srgb, var(--ac) 75%, transparent); }
+.wo-inner { clip-path: polygon(26px 0, calc(100% - 26px) 0, 100% 50%, calc(100% - 26px) 100%, 26px 100%, 0 50%); background: #0c0c0e; padding: 18px 30px; display: flex; align-items: center; gap: 16px; }
+.wo-fig { width: 40px; height: 48px; flex-shrink: 0; color: var(--ac); }
+.wo-body { flex: 1; min-width: 0; }
+.wo-title { font-family: 'Fraunces', Georgia, serif; font-size: 21px; font-weight: 500; letter-spacing: -0.01em; color: var(--text-primary); line-height: 1.1; margin: 3px 0; }
+.wo-sub { font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 11px; letter-spacing: 0.04em; color: var(--text-tertiary); }
+.wo-play { width: 54px; height: 54px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--ac) 60%, transparent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--ac); background: color-mix(in srgb, var(--ac) 10%, transparent); transition: background 0.2s, transform 0.2s; }
+.wo-card:hover .wo-play { background: color-mix(in srgb, var(--ac) 22%, transparent); transform: scale(1.05); }
+
+/* ── Mini duo cards ─────────────────────────────── */
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.mini { display: flex; flex-direction: column; min-height: 150px; padding: 16px; }
+.mini-val { font-family: 'Fraunces', Georgia, serif; font-size: 34px; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text-primary); margin-top: 8px; }
+.mini-sub { font-size: 12px; color: var(--text-secondary); margin-top: 5px; }
+.mini-spacer { flex: 1; }
+.mini-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; margin-top: 14px; }
+.mini-bar-fill { height: 100%; border-radius: 3px; background: var(--ac); width: 0; transition: width 0.6s var(--ease-out-expo); box-shadow: 0 0 8px -1px var(--ac); }
+.mini-tasks { --ac: var(--text-tertiary); border-style: dashed; }
+.water-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+.water-glass { width: 38px; height: 50px; flex-shrink: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hc, .wo-card, .home-head, .mini-bar-fill { animation: none !important; transition: none !important; }
 }
-.daily-reminders { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.daily-reminders-label { font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); margin-right: 4px; flex-shrink: 0; }
-.reminder-chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(242,192,99,0.30); background: rgba(242,192,99,0.08); color: var(--text-primary); font-size: 12px; font-weight: 600; text-decoration: none; transition: border-color 0.2s, background 0.2s; cursor: pointer; }
-.reminder-chip:hover { border-color: rgba(242,192,99,0.55); background: rgba(242,192,99,0.14); }
-.reminder-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: #F2C063; box-shadow: 0 0 7px rgba(242,192,99,0.7); flex-shrink: 0; }
-.reminder-chip-arrow { color: var(--text-tertiary); font-size: 11px; }
-.home-ticker { display:flex; align-items:stretch; gap:0; border:1px solid rgba(255,255,255,0.08); border-radius:999px; background:rgba(255,255,255,0.02); overflow:hidden; margin-bottom:16px; }
-.home-ticker-live { display:flex; align-items:center; gap:7px; padding:10px 14px; border-right:1px solid rgba(255,255,255,0.07); flex-shrink:0; }
-.home-ticker-dot { width:7px; height:7px; border-radius:50%; background:#6BE3A4; box-shadow:0 0 8px rgba(107,227,164,0.7); animation:tickerBlink 2s ease-in-out infinite; flex-shrink:0; }
-@keyframes tickerBlink { 0%,100%{opacity:1} 50%{opacity:0.35} }
-.home-ticker-live-lbl { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:10px; font-weight:800; letter-spacing:0.16em; text-transform:uppercase; color:#6BE3A4; }
-.home-ticker-viewport { flex:1; overflow:hidden; -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 24px,#000 calc(100% - 24px),transparent 100%); mask-image:linear-gradient(90deg,transparent 0,#000 24px,#000 calc(100% - 24px),transparent 100%); }
-.home-ticker-track { display:inline-flex; align-items:center; gap:0; padding:0; white-space:nowrap; animation:tickerScroll 32s linear infinite; will-change:transform; }
-.home-ticker:hover .home-ticker-track { animation-play-state:paused; }
-@keyframes tickerScroll { from{transform:translateX(0)} to{transform:translateX(-50%)} }
-.home-ticker-item { display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-right:1px solid rgba(255,255,255,0.07); font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:rgba(250,250,250,0.5); white-space:nowrap; }
-.home-ticker-item b { color:#FAFAFA; font-weight:700; font-variant-numeric:tabular-nums; }
-.home-ticker-item .home-ticker-dot-sep { width:4px; height:4px; border-radius:50%; background:#6BE3A4; opacity:0.6; flex-shrink:0; }
-@media (prefers-reduced-motion:reduce) { .home-ticker-track { animation:none; } }
 </style>
 </head>
 <body class="grain-overlay">
@@ -47,7 +96,6 @@
     <div class="auth-title">My Dashboard</div>
     <p class="auth-sub">Sign in to sync your goals across all your devices.</p>
     <button class="auth-sign-in-btn" id="signInBtn">
-      <!-- Google G logo -->
       <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
       Sign in with Google
     </button>
@@ -59,87 +107,135 @@
 <div id="appContainer"><div class="tab-page active" id="page-home">
 <div class="container">
 
-  <div class="dash-header">
-    <h1 class="dash-title">My Dashboard</h1>
-    <div class="user-bar">
+  <!-- Header -->
+  <div class="home-head">
+    <div class="home-eyebrow" id="homeDate">—</div>
+    <div class="home-greet-row">
+      <h1 class="home-greet" id="homeGreet">Hello</h1>
+      <button class="home-avatar" id="homeAvatar" aria-label="Edit your name">·</button>
+    </div>
+    <div class="user-bar" style="margin-top:10px;">
       <span class="user-email" id="userEmailEl"></span>
       <span class="sync-dot" id="syncDot" title="Sync status"></span>
       <button class="sign-out-btn" id="signOutBtn">Sign out</button>
     </div>
   </div>
 
-  <div class="ticker-row">
-    <div class="goal-ticker" id="goalTicker" aria-live="polite" aria-atomic="true">
-      <div class="goal-ticker-led"><span class="goal-ticker-led-dot"></span></div>
-      <div class="goal-ticker-label">GOALS</div>
-      <div class="goal-ticker-stage" id="goalTickerStage">
-        <div class="goal-ticker-row">
-          <span class="goal-ticker-status" data-status="">·</span>
-          <span class="goal-ticker-text">Loading…</span>
-        </div>
+  <!-- Recovery hero -->
+  <div class="hc rec-card" id="recCard" role="button" tabindex="0" aria-label="Recovery details" style="animation-delay:0.04s;">
+    <div class="rec-gauge-wrap">
+      <svg class="rec-gauge" viewBox="0 0 240 132" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="recGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="var(--danger)"/>
+            <stop offset="0.5" stop-color="var(--warning)"/>
+            <stop offset="1" stop-color="var(--success)"/>
+          </linearGradient>
+        </defs>
+        <path d="M28 120 A92 92 0 0 1 212 120" fill="none" stroke="url(#recGrad)" stroke-width="9" stroke-linecap="round" id="recArc"/>
+        <g id="recTicks" stroke="rgba(255,255,255,0.22)" stroke-width="1.5"></g>
+        <line id="recNeedle" x1="120" y1="120" x2="120" y2="42" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="120" cy="120" r="6" fill="#0a0a0c" stroke="var(--success)" stroke-width="2.5" id="recHub"/>
+      </svg>
+      <div class="rec-overlay">
+        <span class="hc-eyebrow" id="recLabel">Recovery · Whoop</span>
+        <div class="rec-val" id="recVal" style="color:var(--success)">—</div>
+        <div class="rec-status" id="recStatus">connect whoop</div>
       </div>
-      <div class="goal-ticker-meta" id="goalTickerMeta">0/0</div>
     </div>
   </div>
 
-  <div class="day-ring-card">
-    <div class="day-ring-container">
-      <div class="day-ring-wrap">
-        <svg class="day-ring-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <filter id="ring-glow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="2.5" result="blur"/>
-              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-          </defs>
-          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"/>
-          <circle id="dayRingFill" cx="60" cy="60" r="52" fill="none" stroke-width="8"
-            stroke-linecap="round" transform="rotate(-90 60 60)" filter="url(#ring-glow)"/>
+  <!-- HRV / RHR -->
+  <div class="stat-grid">
+    <div class="hc stat-card" id="hrvCard" role="button" tabindex="0" aria-label="HRV trend" style="animation-delay:0.08s;">
+      <div class="stat-top">
+        <span class="hc-eyebrow">HRV</span>
+        <span class="stat-trend" id="hrvTrend"></span>
+      </div>
+      <div class="stat-val-row"><span class="stat-val" id="hrvVal">—</span><span class="stat-unit">ms</span></div>
+      <svg class="stat-spark" id="hrvSpark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="stat-foot" id="hrvFoot">no data</div>
+    </div>
+    <div class="hc stat-card" id="rhrCard" role="button" tabindex="0" aria-label="Resting heart rate trend" style="animation-delay:0.12s;">
+      <div class="stat-top">
+        <span class="hc-eyebrow">RHR</span>
+        <span class="stat-trend" id="rhrTrend"></span>
+      </div>
+      <div class="stat-val-row"><span class="stat-val" id="rhrVal">—</span><span class="stat-unit">bpm</span></div>
+      <svg class="stat-spark" id="rhrSpark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <div class="stat-foot" id="rhrFoot">no data</div>
+    </div>
+  </div>
+
+  <!-- Workout -->
+  <div class="wo-card" id="woCard" role="button" tabindex="0" aria-label="Today's workout" style="animation-delay:0.16s;">
+    <div class="wo-hex"><div class="wo-inner">
+      <svg class="wo-fig" viewBox="0 0 40 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="20" cy="8" r="5"/>
+        <path d="M20 13v15"/>
+        <path d="M20 16l-11-4M20 16l11-4"/>
+        <path d="M20 28l-8 16M20 28l8 16"/>
+      </svg>
+      <div class="wo-body">
+        <div class="hc-eyebrow" id="woEyebrow">Today</div>
+        <div class="wo-title" id="woTitle">Rest day</div>
+        <div class="wo-sub" id="woSub">no session planned</div>
+      </div>
+      <div class="wo-play" id="woPlay" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- Strain / Water -->
+  <div class="duo">
+    <div class="hc mini" id="strainCard" role="button" tabindex="0" aria-label="Strain target" style="--ac:var(--accent-work);animation-delay:0.2s;">
+      <span class="hc-eyebrow">Strain target</span>
+      <span class="mini-val hc-serif" id="strainVal">—</span>
+      <span class="mini-sub" id="strainSub">connect whoop</span>
+      <div class="mini-spacer"></div>
+      <div class="mini-bar"><div class="mini-bar-fill" id="strainBar"></div></div>
+    </div>
+    <div class="hc mini" id="waterCard" role="button" tabindex="0" aria-label="Water intake" style="--ac:var(--accent-home);animation-delay:0.24s;">
+      <span class="hc-eyebrow">Water</span>
+      <div class="water-row">
+        <div>
+          <span class="mini-val hc-serif" id="waterVal">0/8</span>
+          <span class="mini-sub" id="waterSub" style="display:block;">0.0 / 2.5 L</span>
+        </div>
+        <svg class="water-glass" viewBox="0 0 38 50" aria-hidden="true">
+          <defs><clipPath id="glassClip"><path d="M7 4 h24 l-3 42 a3 3 0 0 1 -3 3 h-12 a3 3 0 0 1 -3 -3 z"/></clipPath></defs>
+          <rect id="waterFill" x="0" y="50" width="38" height="0" fill="var(--accent-home)" opacity="0.85" clip-path="url(#glassClip)"/>
+          <path d="M7 4 h24 l-3 42 a3 3 0 0 1 -3 3 h-12 a3 3 0 0 1 -3 -3 z" fill="none" stroke="var(--accent-home)" stroke-width="2" stroke-linejoin="round"/>
         </svg>
-        <div class="day-ring-overlay">
-          <span id="dayRingPercent" class="day-ring-percent">—</span>
-          <span id="dayRingPhase" class="day-ring-phase">SLEEPING</span>
-          <span id="dayRingClock" class="day-ring-clock"></span>
-        </div>
       </div>
-      <div class="day-ring-info">
-        <div id="dayRingStatus" class="day-ring-status"></div>
-        <div id="dayRingRemaining" class="day-ring-remaining"></div>
-        <div class="day-ring-range">8:00 AM – 12:00 AM</div>
-      </div>
+      <div class="mini-spacer"></div>
+      <div class="mini-bar"><div class="mini-bar-fill" id="waterBar"></div></div>
     </div>
   </div>
 
-  <div id="dailyReminders"></div>
-
-  <div class="home-ticker" id="homeTicker">
-    <div class="home-ticker-live">
-      <span class="home-ticker-dot"></span>
-      <span class="home-ticker-live-lbl">LIVE</span>
+  <!-- Tasks / Money -->
+  <div class="duo">
+    <div class="hc mini mini-tasks" id="tasksCard" role="button" tabindex="0" aria-label="Today's tasks" style="animation-delay:0.28s;">
+      <span class="hc-eyebrow">Tasks</span>
+      <span class="mini-val hc-serif" id="tasksVal">0</span>
+      <span class="mini-sub" id="tasksSub">all clear</span>
+      <div class="mini-spacer"></div>
+      <div class="mini-bar"><div class="mini-bar-fill" id="tasksBar" style="--ac:var(--success);"></div></div>
     </div>
-    <div class="home-ticker-viewport">
-      <div class="home-ticker-track" id="homeTickerTrack"></div>
+    <div class="hc mini" id="moneyCard" role="button" tabindex="0" aria-label="Spending today" style="--ac:var(--accent-money);animation-delay:0.32s;">
+      <span class="hc-eyebrow">Spend today</span>
+      <span class="mini-val hc-serif" id="moneyVal">€0</span>
+      <span class="mini-sub" id="moneySub">nothing logged</span>
+      <div class="mini-spacer"></div>
+      <div class="mini-bar"><div class="mini-bar-fill" id="moneyBar"></div></div>
     </div>
   </div>
-
-  <!-- Water summary widget -->
-  <div class="gm-card hlth-water-widget" id="waterWidget" style="animation: cardSlideIn 0.45s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.04s;"></div>
-
-  <!-- Whoop overview widget -->
-  <div class="gm-card" id="whoopWidget" style="padding:18px 20px;margin-bottom:16px; animation: cardSlideIn 0.45s cubic-bezier(0.16,1,0.3,1) both; animation-delay: 0.08s;"></div>
-
 
 </div>
 </div>
 
 <nav class="bottom-nav" aria-label="Main navigation">
-  <button class="nav-tab active" data-tab="home" aria-label="Home">
-    <div class="nav-tab-indicator"></div>
-    <div class="nav-tab-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>
-    </div>
-    <span class="nav-tab-label">Home</span>
-  </button>
   <button class="nav-tab" data-tab="tasks" aria-label="Tasks">
     <div class="nav-tab-indicator"></div>
     <div class="nav-tab-icon">
@@ -154,6 +250,13 @@
     </div>
     <span class="nav-tab-label">Gym</span>
   </button>
+  <button class="nav-tab active" data-tab="home" aria-label="Home">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>
+    </div>
+    <span class="nav-tab-label">Home</span>
+  </button>
   <button class="nav-tab" data-tab="health" aria-label="Health">
     <div class="nav-tab-indicator"></div>
     <div class="nav-tab-icon">
@@ -161,147 +264,262 @@
     </div>
     <span class="nav-tab-label">Health</span>
   </button>
-  <button class="nav-tab" data-tab="nutrition" aria-label="Nutrition">
-    <div class="nav-tab-indicator"></div>
-    <div class="nav-tab-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v6c0 1.1.9 2 2 2a2 2 0 002-2V3"/><line x1="5" y1="9" x2="5" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><path d="M15 3a4 4 0 014 4v1h-4"/></svg>
-    </div>
-    <span class="nav-tab-label">Nutrition</span>
-  </button>
   <button class="nav-tab" data-tab="finance" aria-label="Finance">
     <div class="nav-tab-indicator"></div>
     <div class="nav-tab-icon">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="4" height="7"/><rect x="9" y="8" width="4" height="13"/><rect x="16" y="4" width="4" height="17"/><line x1="1" y1="21" x2="23" y2="21"/></svg>
     </div>
-    <span class="nav-tab-label">Finance</span>
+    <span class="nav-tab-label">Money</span>
   </button>
 </nav>
 </div>
 
 <script src="shared.js"></script>
 <script>
-function renderHomeTicker() {
-  const ticker = document.getElementById('homeTicker');
-  const track  = document.getElementById('homeTickerTrack');
-  if (!ticker || !track) return;
+(function () {
+  const $ = id => document.getElementById(id);
 
-  const items = [];
-
-  // Recovery
-  if (typeof whoopConnected !== 'undefined' && whoopConnected) {
-    const score = whoopCache?.recovery?.score?.recovery_score;
-    if (score != null) {
-      const color = typeof recoveryColor === 'function' ? recoveryColor(score)
-        : score >= 67 ? '#6BE3A4' : score >= 34 ? '#F2C063' : '#FF6B6B';
-      items.push({ label: 'RECOVERY', value: Math.round(score) + '%', color });
+  // ── Header: date + greeting + avatar ──────────────
+  function homeName() {
+    const override = localStorage.getItem('po_name');
+    if (override) return override;
+    const email = (typeof currentUser !== 'undefined' && currentUser && currentUser.email) || '';
+    if (email) {
+      let n = email.split('@')[0].replace(/[0-9._\-+]+/g, ' ').trim().split(' ')[0];
+      if (n) return n.charAt(0).toUpperCase() + n.slice(1);
     }
+    return 'there';
+  }
+  function greetWord() {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : h < 22 ? 'Good evening' : 'Good night';
+  }
+  function renderHeader() {
+    const d = new Date();
+    const ds = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    $('homeDate').textContent = ds.toUpperCase().replace(', ', ' · ');
+    const name = homeName();
+    $('homeGreet').innerHTML = greetWord() + ', <span class="gname">' + name + '</span>';
+    $('homeAvatar').textContent = (name[0] || '·').toUpperCase();
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#homeAvatar')) return;
+    const cur = localStorage.getItem('po_name') || '';
+    const next = prompt('What should I call you?', cur);
+    if (next !== null) {
+      const v = next.trim();
+      if (v) localStorage.setItem('po_name', v); else localStorage.removeItem('po_name');
+      renderHeader();
+    }
+  });
+
+  // ── Recovery gauge ────────────────────────────────
+  function buildTicks() {
+    const g = $('recTicks'); if (!g || g.childElementCount) return;
+    let html = '';
+    for (let i = 0; i <= 10; i++) {
+      const t = Math.PI * (i / 10);
+      const co = Math.cos(t), si = Math.sin(t);
+      const x1 = 120 - 92 * co, y1 = 120 - 92 * si;
+      const x2 = 120 - 80 * co, y2 = 120 - 80 * si;
+      html += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+    }
+    g.innerHTML = html;
+  }
+  function recBand(s) { return s >= 67 ? "you're primed" : s >= 34 ? 'stay balanced' : 'take it easy'; }
+  function renderRecovery() {
+    buildTicks();
+    const connected = typeof whoopConnected !== 'undefined' && whoopConnected;
+    const score = connected ? (whoopCache && whoopCache.recovery && whoopCache.recovery.score && whoopCache.recovery.score.recovery_score) : null;
+    const needle = $('recNeedle'), val = $('recVal'), status = $('recStatus'), hub = $('recHub'), arc = $('recArc');
+    if (score == null) {
+      val.textContent = '—'; val.style.color = 'var(--text-tertiary)';
+      status.textContent = connected ? 'no recent score' : 'connect whoop';
+      const t = Math.PI * 0.5;
+      needle.setAttribute('x2', (120 - 78 * Math.cos(t)).toFixed(1));
+      needle.setAttribute('y2', (120 - 78 * Math.sin(t)).toFixed(1));
+      needle.setAttribute('stroke', 'var(--text-tertiary)');
+      hub.setAttribute('stroke', 'var(--text-tertiary)');
+      if (arc) arc.style.opacity = '0.35';
+      return;
+    }
+    if (arc) arc.style.opacity = '1';
+    const c = recoveryColor(score);
+    val.textContent = Math.round(score); val.style.color = c;
+    status.textContent = recBand(score);
+    hub.setAttribute('stroke', c);
+    needle.setAttribute('stroke', 'var(--text-primary)');
+    const t = Math.PI * (Math.max(0, Math.min(100, score)) / 100);
+    needle.setAttribute('x2', (120 - 78 * Math.cos(t)).toFixed(1));
+    needle.setAttribute('y2', (120 - 78 * Math.sin(t)).toFixed(1));
   }
 
-  // HRV
-  const hrv = whoopCache?.recovery?.score?.hrv_rmssd_milli;
-  if (hrv != null) items.push({ label: 'HRV', value: Math.round(hrv) + 'ms', color: 'inherit' });
-
-  // Sleep
-  const sleepPct = whoopCache?.sleep?.[0]?.score?.sleep_performance_percentage;
-  if (sleepPct != null) items.push({ label: 'SLEEP', value: Math.round(sleepPct) + '%', color: 'inherit' });
-
-  // Water
-  try {
-    const wd    = waterLoad();
-    const total = (wd.entries || []).reduce((s, e) => s + (e.amount || 0), 0);
-    const goal  = waterGetGoal() || 2500;
-    items.push({ label: 'WATER', value: total + 'ml / ' + goal + 'ml', color: total >= goal ? '#6BE3A4' : 'inherit' });
-  } catch {}
-
-  // Supplements
-  try {
-    const suppCfg   = storeGet('supp_config') || { supplements: [] };
-    const suppTaken = storeGet('supp_taken:' + getActiveDateString()) || {};
-    let taken = 0, total = 0;
-    (suppCfg.supplements || []).forEach(s => {
-      ['morning', 'lunch', 'night'].forEach(sess => {
-        if ((s.sessions || []).includes(sess)) {
-          total++;
-          if (suppTaken[s.id + ':' + sess]) taken++;
-        }
-      });
+  // ── HRV / RHR sparkline cards ─────────────────────
+  function recHistory() {
+    const h = (typeof whoopCache !== 'undefined' && whoopCache && whoopCache.recoveryHistory) || [];
+    return h.filter(r => r && r.score).slice(0, 14).reverse();
+  }
+  function sparkPath(svg, series, color) {
+    if (!svg) return;
+    const pts = series.filter(v => v != null);
+    if (pts.length < 2) { svg.innerHTML = ''; return; }
+    const min = Math.min(...pts), max = Math.max(...pts), span = (max - min) || 1;
+    const n = pts.length;
+    const coords = pts.map((v, i) => {
+      const x = (i / (n - 1)) * 100;
+      const y = 27 - ((v - min) / span) * 24;
+      return [x, y];
     });
-    if (total > 0) items.push({ label: 'SUPPS', value: taken + '/' + total, color: 'inherit' });
-  } catch {}
-
-  // Weight
-  try {
-    const weights = wtLoad();
-    if (weights.length) {
-      const latestWt = weights[weights.length - 1].weight;
-      if (latestWt != null) items.push({ label: 'WEIGHT', value: latestWt + ' kg', color: 'inherit' });
+    const d = coords.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const last = coords[coords.length - 1];
+    svg.innerHTML =
+      `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" opacity="0.85"/>` +
+      `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2" fill="${color}"/>`;
+  }
+  function trendMarkup(delta, goodWhenPositive) {
+    if (delta == null || delta === 0) return { txt: '', col: 'var(--text-tertiary)', foot: 'steady' };
+    const up = delta > 0;
+    const good = goodWhenPositive ? up : !up;
+    const arrow = up ? '↗' : '↘';
+    return {
+      txt: arrow + Math.abs(delta),
+      col: good ? 'var(--success)' : 'var(--warning)',
+      foot: (up ? '↑ ' : '↓ ') + Math.abs(delta) + ' from baseline · ' + (good ? 'good' : 'watch')
+    };
+  }
+  function renderStat(kind) {
+    const hist = recHistory();
+    const key = kind === 'hrv' ? 'hrv_rmssd_milli' : 'resting_heart_rate';
+    const series = hist.map(r => r.score[key]).filter(v => v != null).map(v => Math.round(v));
+    const cur = (typeof whoopCache !== 'undefined' && whoopCache && whoopCache.recovery && whoopCache.recovery.score) ? whoopCache.recovery.score[key] : null;
+    const valEl = $(kind + 'Val'), trendEl = $(kind + 'Trend'), footEl = $(kind + 'Foot');
+    const latest = (cur != null) ? Math.round(cur) : (series.length ? series[series.length - 1] : null);
+    if (latest == null) { valEl.textContent = '—'; trendEl.textContent = ''; footEl.textContent = 'no data'; sparkPath($(kind + 'Spark'), [], ''); return; }
+    valEl.textContent = latest;
+    let delta = null;
+    if (series.length >= 2) {
+      const base = series.reduce((s, v) => s + v, 0) / series.length;
+      delta = Math.round(latest - base);
     }
-  } catch {}
-
-  if (items.length < 2) { ticker.style.display = 'none'; return; }
-  ticker.style.display = '';
-
-  const itemHtml = items.map(it =>
-    `<div class="home-ticker-item"><span class="home-ticker-dot-sep"></span>${it.label}&nbsp;<b style="color:${it.color}">${it.value}</b></div>`
-  ).join('');
-  track.innerHTML = itemHtml + itemHtml;
-}
-
-function renderDailyReminders() {
-  const el = document.getElementById('dailyReminders');
-  if (!el) return;
-
-  const now = new Date();
-  const dateKey = now.getHours() < 6
-    ? new Date(now - 864e5).toISOString().slice(0, 10)
-    : now.toISOString().slice(0, 10);
-
-  const weights = JSON.parse(localStorage.getItem('po_coach_weights') || '[]');
-  const weightLogged = weights.some(e => e.dateKey === dateKey);
-
-  const workoutDone = JSON.parse(localStorage.getItem('po_coach_workout_done') || '{}');
-  const gymLogged = !!workoutDone[dateKey];
-
-  const reminders = [];
-  if (!weightLogged) reminders.push({ icon: '⚖️', text: "Log today's weight", href: 'gym.html' });
-  if (!gymLogged)    reminders.push({ icon: '🏋️', text: "Log today's workout", href: 'gym.html' });
-
-  if (!reminders.length) { el.innerHTML = ''; return; }
-
-  el.innerHTML = `<div class="daily-reminders">
-  <span class="daily-reminders-label">TODAY</span>
-  ${reminders.map(r => `<a class="reminder-chip" href="${r.href}"><span class="reminder-chip-dot"></span>${r.icon} ${r.text}<span class="reminder-chip-arrow">›</span></a>`).join('')}
-</div>`;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  renderDailyReminders();
-  renderHomeTicker();
-
-  const _origWater = window.waterWidgetRender;
-  if (typeof _origWater === 'function') {
-    window.waterWidgetRender = function() {
-      _origWater.apply(this, arguments);
-      renderDailyReminders();
-    };
+    const tr = trendMarkup(delta, kind === 'hrv');
+    trendEl.textContent = tr.txt; trendEl.style.color = tr.col;
+    footEl.textContent = tr.foot;
+    sparkPath($(kind + 'Spark'), series.length >= 2 ? series : [latest, latest], 'var(--success)');
   }
 
-  const _origWhoop = window.renderWhoopHomeWidget;
-  if (typeof _origWhoop === 'function') {
-    window.renderWhoopHomeWidget = function() {
-      _origWhoop.apply(this, arguments);
-      renderDailyReminders();
-    };
+  // ── Workout ───────────────────────────────────────
+  const SPLIT_MUSCLES = { push: 'Chest · Shoulders · Tri', pull: 'Back · Biceps', legs: 'Quads · Hams · Glutes', upper: 'Upper body', lower: 'Lower body', 'full body': 'Full body', arms: 'Biceps · Triceps', chest: 'Chest day', back: 'Back day', shoulders: 'Shoulders', core: 'Core', rest: 'Rest day' };
+  function renderWorkout() {
+    let day = null, n = 0;
+    try {
+      const gs = loadGymState();
+      day = gymAutoDay(gs);
+      const exs = (gs.splits && day && gs.splits[day]) || [];
+      n = exs.length;
+    } catch {}
+    const eb = $('woEyebrow'), title = $('woTitle'), sub = $('woSub');
+    if (!day || /rest/i.test(day)) {
+      eb.textContent = 'Today · Rest';
+      title.textContent = 'Rest day';
+      sub.textContent = 'Recovery — no session';
+      return;
+    }
+    eb.textContent = 'Today · ' + day.toUpperCase();
+    title.textContent = SPLIT_MUSCLES[day.toLowerCase()] || day;
+    sub.textContent = n ? (n + ' ex · ~' + Math.round(n * 8.5) + ' min') : 'Tap to build your split';
   }
 
-  const _origRWW = window.renderWhoopWidgets;
-  if (typeof _origRWW === 'function') {
-    window.renderWhoopWidgets = function() {
-      _origRWW.apply(this, arguments);
-      renderHomeTicker();
-    };
+  // ── Strain ────────────────────────────────────────
+  function strainBand(v) { return v < 10 ? 'light day' : v < 14 ? 'moderate day' : v < 18 ? 'hard day' : 'all-out'; }
+  function renderStrain() {
+    const connected = typeof whoopConnected !== 'undefined' && whoopConnected;
+    const rec = connected && whoopCache && whoopCache.recovery && whoopCache.recovery.score && whoopCache.recovery.score.recovery_score;
+    const now = connected && whoopCache && whoopCache.cycle && whoopCache.cycle.score && whoopCache.cycle.score.strain;
+    const val = $('strainVal'), sub = $('strainSub'), bar = $('strainBar');
+    if (rec != null && rec !== false) {
+      const target = Math.round((rec / 100) * 21 * 10) / 10;
+      val.textContent = target.toFixed(1);
+      sub.textContent = (now != null && now !== false) ? (now.toFixed(1) + ' so far · ' + strainBand(target)) : strainBand(target);
+      bar.style.width = Math.min(100, ((now || 0) / target) * 100) + '%';
+    } else if (now != null && now !== false) {
+      val.textContent = now.toFixed(1);
+      sub.textContent = strainBand(now) + ' so far';
+      bar.style.width = Math.min(100, (now / 21) * 100) + '%';
+    } else {
+      val.textContent = '—'; sub.textContent = 'connect whoop'; bar.style.width = '0%';
+    }
   }
-});
+
+  // ── Water ─────────────────────────────────────────
+  function renderWater() {
+    let total = 0, goal = 2500;
+    try {
+      const wd = waterLoad();
+      total = (wd.entries || []).reduce((s, e) => s + (e.amount || 0), 0);
+      goal = waterGetGoal() || 2500;
+    } catch {}
+    const ratio = Math.max(0, Math.min(1, total / goal));
+    const cups = Math.round(total / 250), goalCups = Math.max(1, Math.round(goal / 250));
+    $('waterVal').textContent = cups + '/' + goalCups;
+    $('waterSub').textContent = (total / 1000).toFixed(1) + ' / ' + (goal / 1000).toFixed(1) + ' L';
+    $('waterBar').style.width = (ratio * 100) + '%';
+    const fill = $('waterFill');
+    if (fill) { const h = 50 * ratio; fill.setAttribute('y', (50 - h).toFixed(1)); fill.setAttribute('height', h.toFixed(1)); }
+  }
+
+  // ── Tasks ─────────────────────────────────────────
+  function renderTasks() {
+    let total = 0, done = 0;
+    try {
+      const goals = storeGet('goals:' + getActiveDateString()) || [];
+      total = goals.length; done = goals.filter(g => g.done).length;
+    } catch {}
+    const left = total - done;
+    $('tasksVal').textContent = total ? left : '0';
+    $('tasksSub').textContent = !total ? 'nothing planned' : left ? (left + ' left of ' + total) : 'all done';
+    $('tasksBar').style.width = (total ? (done / total) * 100 : 0) + '%';
+  }
+
+  // ── Money ─────────────────────────────────────────
+  function renderMoney() {
+    const today = getActiveDateString();
+    const tx = (typeof finTransactions !== 'undefined' && finTransactions) || [];
+    const spend = tx.filter(t => t.type === 'expense' && String(t.date).slice(0, 10) === today)
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+    $('moneyVal').textContent = '€' + Math.round(spend);
+    $('moneySub').textContent = spend > 0 ? 'spent today' : (tx.length ? 'nothing logged' : '—');
+    $('moneyBar').style.width = Math.min(100, (spend / 100) * 100) + '%';
+  }
+
+  // ── Orchestrate ───────────────────────────────────
+  function renderHome() {
+    renderHeader(); renderRecovery();
+    renderStat('hrv'); renderStat('rhr');
+    renderWorkout(); renderStrain(); renderWater(); renderTasks(); renderMoney();
+  }
+
+  function go(tab) { if (typeof switchTab === 'function') switchTab(tab); else window.location.href = tab + '.html'; }
+  function wireNav(id, tab) {
+    const el = $(id); if (!el) return;
+    el.addEventListener('click', () => go(tab));
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(tab); } });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    wireNav('recCard', 'health'); wireNav('hrvCard', 'health'); wireNav('rhrCard', 'health');
+    wireNav('woCard', 'gym'); wireNav('strainCard', 'health'); wireNav('waterCard', 'health');
+    wireNav('tasksCard', 'tasks'); wireNav('moneyCard', 'finance');
+
+    renderHome();
+    [350, 1200, 3000].forEach(ms => setTimeout(renderHome, ms));
+    window.addEventListener('inbox-changed', renderHome);
+
+    ['renderWhoopWidgets', 'renderWhoopHomeWidget', 'waterWidgetRender'].forEach(fn => {
+      const orig = window[fn];
+      if (typeof orig === 'function') window[fn] = function () { const r = orig.apply(this, arguments); renderHome(); return r; };
+    });
+  });
+})();
 </script>
 </body>
 </html>
