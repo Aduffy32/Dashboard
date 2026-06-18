@@ -83,6 +83,29 @@
 .mini-tasks { --ac: var(--text-tertiary); border-style: dashed; }
 .water-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
 .water-glass { width: 38px; height: 50px; flex-shrink: 0; }
+.mini-unit { font-size: 16px; color: var(--text-tertiary); margin-left: 1px; font-family: 'Fraunces', Georgia, serif; }
+.water-quick { display: flex; gap: 6px; margin-top: 10px; }
+.wq-chip { flex: 1; padding: 7px 0; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--accent-home) 32%, transparent); background: color-mix(in srgb, var(--accent-home) 8%, transparent); color: var(--accent-home); font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 0.18s, transform 0.12s; -webkit-tap-highlight-color: transparent; }
+.wq-chip:hover { background: color-mix(in srgb, var(--accent-home) 18%, transparent); }
+.wq-chip:active { transform: scale(0.96); }
+
+/* ── Daily reminders ───────────────────────────── */
+.home-reminders { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; animation: cardSlideIn 0.5s var(--ease-out-expo) both; animation-delay: 0.02s; }
+.home-reminders:empty { display: none; }
+.rem-label { font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-tertiary); margin-right: 2px; }
+.rem-chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.03); color: var(--text-secondary); font-family: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; transition: border-color 0.2s, background 0.2s, color 0.2s; -webkit-tap-highlight-color: transparent; }
+.rem-chip:hover { border-color: rgba(255,255,255,0.22); color: var(--text-primary); }
+.rem-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-tertiary); flex-shrink: 0; }
+.rem-smart { color: var(--text-primary); border-color: color-mix(in srgb, var(--rc, var(--warning)) 32%, transparent); }
+.rem-smart .rem-dot { background: var(--rc, var(--warning)); box-shadow: 0 0 7px color-mix(in srgb, var(--rc, var(--warning)) 70%, transparent); }
+.rem-smart:hover { border-color: color-mix(in srgb, var(--rc, var(--warning)) 60%, transparent); }
+.rem-done { color: var(--text-tertiary); border-style: dashed; }
+.rem-done .rem-text { text-decoration: line-through; opacity: 0.7; }
+.rem-done .rem-dot { background: var(--success); box-shadow: none; }
+.rem-x { font-size: 15px; line-height: 1; color: var(--text-tertiary); opacity: 0.5; padding-left: 2px; }
+.rem-x:hover { color: var(--danger); opacity: 1; }
+.rem-add { border-style: dashed; color: var(--text-tertiary); font-weight: 600; }
+.home-greet { cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) {
   .hc, .wo-card, .home-head, .mini-bar-fill { animation: none !important; transition: none !important; }
@@ -111,8 +134,8 @@
   <div class="home-head">
     <div class="home-eyebrow" id="homeDate">—</div>
     <div class="home-greet-row">
-      <h1 class="home-greet" id="homeGreet">Hello</h1>
-      <button class="home-avatar" id="homeAvatar" aria-label="Edit your name">·</button>
+      <h1 class="home-greet" id="homeGreet" title="Tap to change your name">Hello</h1>
+      <button class="home-avatar" id="homeAvatar" aria-label="Change your name" title="Tap to change your name">·</button>
     </div>
     <div class="user-bar" style="margin-top:10px;">
       <span class="user-email" id="userEmailEl"></span>
@@ -120,6 +143,9 @@
       <button class="sign-out-btn" id="signOutBtn">Sign out</button>
     </div>
   </div>
+
+  <!-- Daily reminders -->
+  <div class="home-reminders" id="homeReminders"></div>
 
   <!-- Recovery hero -->
   <div class="hc rec-card" id="recCard" role="button" tabindex="0" aria-label="Recovery details" style="animation-delay:0.04s;">
@@ -170,11 +196,9 @@
   <!-- Workout -->
   <div class="wo-card" id="woCard" role="button" tabindex="0" aria-label="Today's workout" style="animation-delay:0.16s;">
     <div class="wo-hex"><div class="wo-inner">
-      <svg class="wo-fig" viewBox="0 0 40 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="20" cy="8" r="5"/>
-        <path d="M20 13v15"/>
-        <path d="M20 16l-11-4M20 16l11-4"/>
-        <path d="M20 28l-8 16M20 28l8 16"/>
+      <svg class="wo-fig" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M7 18v12M12.5 13v22M35.5 13v22M41 18v12"/>
+        <path d="M12.5 24h23"/>
       </svg>
       <div class="wo-body">
         <div class="hc-eyebrow" id="woEyebrow">Today</div>
@@ -196,12 +220,12 @@
       <div class="mini-spacer"></div>
       <div class="mini-bar"><div class="mini-bar-fill" id="strainBar"></div></div>
     </div>
-    <div class="hc mini" id="waterCard" role="button" tabindex="0" aria-label="Water intake" style="--ac:var(--accent-home);animation-delay:0.24s;">
+    <div class="hc mini" id="waterCard" role="button" tabindex="0" aria-label="Water — open hydration" style="--ac:var(--accent-home);animation-delay:0.24s;">
       <span class="hc-eyebrow">Water</span>
       <div class="water-row">
         <div>
-          <span class="mini-val hc-serif" id="waterVal">0/8</span>
-          <span class="mini-sub" id="waterSub" style="display:block;">0.0 / 2.5 L</span>
+          <span class="mini-val hc-serif"><span id="waterVal">0.0</span><span class="mini-unit">L</span></span>
+          <span class="mini-sub" id="waterSub" style="display:block;">of 2.5 L · 0%</span>
         </div>
         <svg class="water-glass" viewBox="0 0 38 50" aria-hidden="true">
           <defs><clipPath id="glassClip"><path d="M7 4 h24 l-3 42 a3 3 0 0 1 -3 3 h-12 a3 3 0 0 1 -3 -3 z"/></clipPath></defs>
@@ -210,6 +234,10 @@
         </svg>
       </div>
       <div class="mini-spacer"></div>
+      <div class="water-quick" id="waterQuick">
+        <button type="button" class="wq-chip" data-ml="250" aria-label="Add 250 millilitres">+250</button>
+        <button type="button" class="wq-chip" data-ml="500" aria-label="Add 500 millilitres">+500</button>
+      </div>
       <div class="mini-bar"><div class="mini-bar-fill" id="waterBar"></div></div>
     </div>
   </div>
@@ -236,6 +264,13 @@
 </div>
 
 <nav class="bottom-nav" aria-label="Main navigation">
+  <button class="nav-tab active" data-tab="home" aria-label="Home">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>
+    </div>
+    <span class="nav-tab-label">Home</span>
+  </button>
   <button class="nav-tab" data-tab="tasks" aria-label="Tasks">
     <div class="nav-tab-indicator"></div>
     <div class="nav-tab-icon">
@@ -250,13 +285,6 @@
     </div>
     <span class="nav-tab-label">Gym</span>
   </button>
-  <button class="nav-tab active" data-tab="home" aria-label="Home">
-    <div class="nav-tab-indicator"></div>
-    <div class="nav-tab-icon">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>
-    </div>
-    <span class="nav-tab-label">Home</span>
-  </button>
   <button class="nav-tab" data-tab="health" aria-label="Health">
     <div class="nav-tab-indicator"></div>
     <div class="nav-tab-icon">
@@ -264,12 +292,19 @@
     </div>
     <span class="nav-tab-label">Health</span>
   </button>
+  <button class="nav-tab" data-tab="nutrition" aria-label="Nutrition">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v6c0 1.1.9 2 2 2a2 2 0 002-2V3"/><line x1="5" y1="9" x2="5" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><path d="M15 3a4 4 0 014 4v1h-4"/></svg>
+    </div>
+    <span class="nav-tab-label">Nutrition</span>
+  </button>
   <button class="nav-tab" data-tab="finance" aria-label="Finance">
     <div class="nav-tab-indicator"></div>
     <div class="nav-tab-icon">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="4" height="7"/><rect x="9" y="8" width="4" height="13"/><rect x="16" y="4" width="4" height="17"/><line x1="1" y1="21" x2="23" y2="21"/></svg>
     </div>
-    <span class="nav-tab-label">Money</span>
+    <span class="nav-tab-label">Finance</span>
   </button>
 </nav>
 </div>
@@ -303,7 +338,7 @@
     $('homeAvatar').textContent = (name[0] || '·').toUpperCase();
   }
   document.addEventListener('click', e => {
-    if (!e.target.closest('#homeAvatar')) return;
+    if (!e.target.closest('#homeAvatar') && !e.target.closest('#homeGreet')) return;
     const cur = localStorage.getItem('po_name') || '';
     const next = prompt('What should I call you?', cur);
     if (next !== null) {
@@ -459,9 +494,8 @@
       goal = waterGetGoal() || 2500;
     } catch {}
     const ratio = Math.max(0, Math.min(1, total / goal));
-    const cups = Math.round(total / 250), goalCups = Math.max(1, Math.round(goal / 250));
-    $('waterVal').textContent = cups + '/' + goalCups;
-    $('waterSub').textContent = (total / 1000).toFixed(1) + ' / ' + (goal / 1000).toFixed(1) + ' L';
+    $('waterVal').textContent = (total / 1000).toFixed(1);
+    $('waterSub').textContent = 'of ' + (goal / 1000).toFixed(1) + ' L · ' + Math.round(ratio * 100) + '%';
     $('waterBar').style.width = (ratio * 100) + '%';
     const fill = $('waterFill');
     if (fill) { const h = 50 * ratio; fill.setAttribute('y', (50 - h).toFixed(1)); fill.setAttribute('height', h.toFixed(1)); }
@@ -491,9 +525,51 @@
     $('moneyBar').style.width = Math.min(100, (spend / 100) * 100) + '%';
   }
 
+  // ── Daily reminders ───────────────────────────────
+  function remToday() { return (typeof getActiveDateString === 'function') ? getActiveDateString() : new Date().toISOString().slice(0, 10); }
+  function remLoad() { try { return JSON.parse(localStorage.getItem('po_reminders') || '[]'); } catch { return []; } }
+  function remSave(a) { localStorage.setItem('po_reminders', JSON.stringify(a)); }
+  function remDoneLoad() { try { return JSON.parse(localStorage.getItem('po_reminders_done:' + remToday()) || '{}'); } catch { return {}; } }
+  function remDoneSave(m) { localStorage.setItem('po_reminders_done:' + remToday(), JSON.stringify(m)); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function renderReminders() {
+    const el = $('homeReminders'); if (!el) return;
+    let weightLogged = false, workoutLogged = false;
+    try { weightLogged = (wtLoad() || []).some(e => e.dateKey === remToday()); } catch {}
+    try { const gs = loadGymState(); workoutLogged = !!(gs && gs.workoutDone && gs.workoutDone[remToday()]); } catch {}
+    const chips = ['<span class="rem-label">Today</span>'];
+    if (!workoutLogged) chips.push('<button class="rem-chip rem-smart" data-go="gym" style="--rc:var(--accent-gym)"><span class="rem-dot"></span>Log workout</button>');
+    if (!weightLogged)  chips.push('<button class="rem-chip rem-smart" data-go="health#hydration" style="--rc:var(--accent-sleep)"><span class="rem-dot"></span>Log weight</button>');
+    const done = remDoneLoad();
+    remLoad().forEach(r => {
+      const isDone = !!done[r.id];
+      chips.push('<button class="rem-chip' + (isDone ? ' rem-done' : '') + '" data-id="' + r.id + '"><span class="rem-dot"></span><span class="rem-text">' + esc(r.text) + '</span><span class="rem-x" data-del="' + r.id + '" role="button" aria-label="Delete reminder">×</span></button>');
+    });
+    chips.push('<button class="rem-chip rem-add" data-add="1">+ Add</button>');
+    el.innerHTML = chips.join('');
+  }
+  function remHandle(e) {
+    const t = e.target;
+    const delId = t.getAttribute && t.getAttribute('data-del');
+    if (delId) { e.stopPropagation(); remSave(remLoad().filter(r => r.id !== delId)); const d = remDoneLoad(); delete d[delId]; remDoneSave(d); renderReminders(); return; }
+    const chip = t.closest && t.closest('.rem-chip'); if (!chip) return;
+    if (chip.dataset.add) {
+      const txt = prompt('New reminder:');
+      if (txt && txt.trim()) { const a = remLoad(); a.push({ id: 'r' + Date.now().toString(36), text: txt.trim() }); remSave(a); renderReminders(); }
+      return;
+    }
+    if (chip.dataset.go) {
+      const g = chip.dataset.go;
+      if (g.indexOf('#') >= 0) window.location.href = g.split('#')[0] + '.html#' + g.split('#')[1];
+      else go(g);
+      return;
+    }
+    if (chip.dataset.id) { const d = remDoneLoad(); if (d[chip.dataset.id]) delete d[chip.dataset.id]; else d[chip.dataset.id] = true; remDoneSave(d); renderReminders(); }
+  }
+
   // ── Orchestrate ───────────────────────────────────
   function renderHome() {
-    renderHeader(); renderRecovery();
+    renderHeader(); renderReminders(); renderRecovery();
     renderStat('hrv'); renderStat('rhr');
     renderWorkout(); renderStrain(); renderWater(); renderTasks(); renderMoney();
   }
@@ -507,8 +583,27 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     wireNav('recCard', 'health'); wireNav('hrvCard', 'health'); wireNav('rhrCard', 'health');
-    wireNav('woCard', 'gym'); wireNav('strainCard', 'health'); wireNav('waterCard', 'health');
+    wireNav('woCard', 'gym'); wireNav('strainCard', 'health');
     wireNav('tasksCard', 'tasks'); wireNav('moneyCard', 'finance');
+
+    // Water card → hydration tab; quick-add chips log inline without navigating
+    const waterCard = $('waterCard');
+    if (waterCard) {
+      const openHydration = () => { window.location.href = 'health.html#hydration'; };
+      waterCard.addEventListener('click', e => { if (!e.target.closest('.wq-chip')) openHydration(); });
+      waterCard.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHydration(); } });
+    }
+    const wq = $('waterQuick');
+    if (wq) wq.addEventListener('click', e => {
+      const btn = e.target.closest('.wq-chip'); if (!btn) return;
+      e.stopPropagation();
+      const ml = parseInt(btn.dataset.ml, 10);
+      if (typeof waterAddAmount === 'function' && ml) waterAddAmount(ml);
+      renderWater();
+    });
+
+    const remEl = $('homeReminders');
+    if (remEl) remEl.addEventListener('click', remHandle);
 
     renderHome();
     [350, 1200, 3000].forEach(ms => setTimeout(renderHome, ms));

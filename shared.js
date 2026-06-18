@@ -4779,7 +4779,10 @@ function renderWhoopHealthSection() {
     </div>
   </div>
 
-  <!-- D. Supplement matrix + E. Quick-water strip -->
+  <!-- D. Hydration logging strip -->
+  <div class="gm-card hlth-water-quick" style="padding:10px 14px;margin-bottom:10px;border:1px solid rgba(91,184,245,0.2);"><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#5BB8F5;white-space:nowrap;">+ WATER</span>${[150, 250, 330, 500, 750].map(v => `<button class="hlth-water-quick-chip" style="border:1px dashed #5BB8F5;color:#5BB8F5;" onclick="waterAddAmount(${v})">${v}ml</button>`).join('')}<button class="hlth-water-undo-btn" onclick="waterUndo()" title="Undo last drink">↩</button></div>
+
+  <!-- E. Supplement matrix -->
   <div class="gm-card" style="padding:12px 14px 14px;margin-bottom:10px;border:1px solid rgba(107,227,164,0.2);">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
       <span style="font-family:ui-monospace,monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:${SUCCESS_HEX};">SUPPLEMENT MATRIX · ${suppTakenCount}/${suppTotalCount}</span>
@@ -4792,11 +4795,6 @@ function renderWhoopHealthSection() {
       <span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tertiary);display:block;text-align:center;">PM</span>
     </div>
     ${suppCfg.supplements.length > 0 ? suppRowsHtml : '<div style="font-size:13px;color:var(--text-tertiary);padding:10px 0;">No supplements configured — add some via ⚙️</div>'}
-    <div class="hlth-water-quick" style="padding-top:12px;border-top:1px dashed rgba(255,255,255,0.08);">
-      <span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#5BB8F5;white-space:nowrap;">+ WATER</span>
-      ${[150, 250, 330, 500, 750].map(v => `<button class="hlth-water-quick-chip" style="border:1px dashed #5BB8F5;color:#5BB8F5;" onclick="waterAddAmount(${v})">${v}ml</button>`).join('')}
-      <button class="hlth-water-undo-btn" onclick="waterUndo()" title="Undo last drink">↩</button>
-    </div>
   </div>`;
 }
 
@@ -5066,6 +5064,8 @@ function renderHydrationPanel() {
   <div class="gm-card" style="padding:10px;margin-bottom:10px;border:1px solid rgba(91,184,245,0.2);">
     <span style="font-family:ui-monospace,monospace;font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:${B};display:block;margin-bottom:6px;">HYDRATION</span>
     <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">${btl}<div style="text-align:center;"><div id="hlthBottleAmountText" style="font-size:16px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;">${wIL} / ${wGL} L</div>${wStrain?`<div style="font-family:ui-monospace,monospace;font-size:8px;color:var(--text-tertiary);margin-top:2px;">${wStrain}</div>`:''}</div></div>
+    <div class="hlth-water-quick" style="padding-top:12px;border-top:1px dashed rgba(255,255,255,0.08);"><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:${B};white-space:nowrap;">+ WATER</span>${[150,250,330,500,750].map(v=>`<button class="hlth-water-quick-chip" style="border:1px dashed ${B};color:${B};" onclick="waterAddAmount(${v})">${v}ml</button>`).join('')}<button class="hlth-water-undo-btn" onclick="waterUndo()" title="Undo last drink">↩</button></div>
+    <div class="hlth-water-history" id="hlthWaterHistory"></div>
   </div>
   <div class="gm-card wt-card" style="margin-bottom:10px;">
     <span style="font-family:ui-monospace,monospace;font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:${W};display:block;margin-bottom:14px;">BODY WEIGHT</span>
@@ -5111,8 +5111,6 @@ function renderHydrationPanel() {
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;"><span style="font-family:ui-monospace,monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:${S};">SUPPLEMENT MATRIX · ${sTkC}/${sTtC}</span><span style="font-family:ui-monospace,monospace;font-size:9px;color:var(--text-tertiary);">NEXT ${nxS}</span></div>
     <div class="hlth-supp-matrix-grid" style="padding:0 2px 6px;border-bottom:1px dashed rgba(255,255,255,0.08);margin-bottom:2px;"><span></span><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tertiary);display:block;text-align:center;">AM</span><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tertiary);display:block;text-align:center;">LUNCH</span><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-tertiary);display:block;text-align:center;">PM</span></div>
     ${sCfg.supplements.length > 0 ? sRows : '<div style="font-size:13px;color:var(--text-tertiary);padding:10px 0;">No supplements configured — add some via ⚙️</div>'}
-    <div class="hlth-water-quick" style="padding-top:12px;border-top:1px dashed rgba(255,255,255,0.08);"><span style="font-family:ui-monospace,monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:${B};white-space:nowrap;">+ WATER</span>${[150,250,330,500,750].map(v=>`<button class="hlth-water-quick-chip" style="border:1px dashed ${B};color:${B};" onclick="waterAddAmount(${v})">${v}ml</button>`).join('')}<button class="hlth-water-undo-btn" onclick="waterUndo()" title="Undo last drink">↩</button></div>
-    <div class="hlth-water-history" id="hlthWaterHistory"></div>
   </div>
   `;
   wtInit();

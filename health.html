@@ -631,6 +631,16 @@
       cafRerender();
     }
   });
+  function hlthActivate(name) {
+    var b = bar.querySelector('.hlth-tab-btn[data-panel="' + name + '"]');
+    if (b) { b.click(); try { b.scrollIntoView({ block: 'nearest' }); } catch (e) {} }
+  }
+  function hlthApplyHash() {
+    var h = (location.hash || '').replace('#', '');
+    if (['recovery', 'caffeine', 'hydration'].indexOf(h) >= 0) hlthActivate(h);
+  }
+  hlthApplyHash();
+  window.addEventListener('hashchange', hlthApplyHash);
 })();
 
 // ── Caffeine tracker (health tab embedded) ────────────────────
