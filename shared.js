@@ -106,11 +106,15 @@ function storeSet(key, value) {
     if (key.startsWith('goals:'))      syncGoalDay(key.slice(6), value);
     else if (key === 'goal_streak_v1') syncStreak(value);
     else if (key === 'inbox')          syncInbox(value);
+    else if (key === 'calendar')       syncAppStateKey('calendar', value);
+    else if (key === 'lifegoals')      syncAppStateKey('lifegoals', value);
   } else {
     localStorage.setItem(key, JSON.stringify(value));
   }
   if (key.startsWith('goals:')) window.dispatchEvent(new CustomEvent('goals-changed'));
   if (key === 'inbox')          window.dispatchEvent(new CustomEvent('inbox-changed'));
+  if (key === 'calendar')       window.dispatchEvent(new CustomEvent('calendar-changed'));
+  if (key === 'lifegoals')      window.dispatchEvent(new CustomEvent('lifegoals-changed'));
 }
 
 function storeDelete(key) {
@@ -163,6 +167,17 @@ async function syncInbox(data) {
     );
   } catch { setSyncError(); } finally { setSyncing(false); }
 }
+// Generic app_state writer for simple JSON stores (calendar templates, life-goals).
+async function syncAppStateKey(appKey, data) {
+  if (!db || !currentUser) return;
+  setSyncing(true);
+  try {
+    await db.from('app_state').upsert(
+      { user_id: currentUser.id, app_key: appKey, payload: data, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,app_key' }
+    );
+  } catch { setSyncError(); } finally { setSyncing(false); }
+}
 
 // ── Load all data from Supabase into cache ─────────────────
 // Fetches everything in two parallel queries so bootApp() starts
@@ -191,6 +206,9 @@ async function loadAllFromSupabase() {
       }
       // Inbox — read via storeGet (cache)
       else if (app_key === 'inbox') cache['inbox'] = payload;
+      // Calendar templates + life-goals — read via storeGet (cache)
+      else if (app_key === 'calendar')  cache['calendar']  = payload;
+      else if (app_key === 'lifegoals') cache['lifegoals'] = payload;
     });
   }
 }
@@ -240,6 +258,12 @@ function subscribeRealtime() {
       } else if (key === 'inbox') {
         cache['inbox'] = incoming;
         window.dispatchEvent(new CustomEvent('inbox-changed'));
+      } else if (key === 'calendar') {
+        cache['calendar'] = incoming;
+        window.dispatchEvent(new CustomEvent('calendar-changed'));
+      } else if (key === 'lifegoals') {
+        cache['lifegoals'] = incoming;
+        window.dispatchEvent(new CustomEvent('lifegoals-changed'));
       }
     })
     .subscribe();
@@ -490,6 +514,7 @@ function bootApp(user) {
   if (window.initMuscleMap) initMuscleMap(loadGymState(), gymToday, () => loadGymState().workoutDone);
   subscribeRealtime();
   initWhoop();
+  try { initGoalsSystem(); } catch (_) {}
 }
 
 // ── Auth ───────────────────────────────────────────────────
@@ -513,6 +538,7 @@ async function initAuth() {
     initGym(); wtInit(); initNutrition(); initNutritionPage(); initHealth();
     if (window.initMuscleMap) initMuscleMap(loadGymState(), gymToday, () => loadGymState().workoutDone);
     renderWhoopWidgets();
+    try { initGoalsSystem(); } catch (_) {}
     return;
   }
 
@@ -6080,7 +6106,7 @@ function initNutritionPage() {
 
 // ── Tab navigation ─────────────────────────────────────────
 function switchTab(id) {
-  const pageMap = { home: 'index.html', tasks: 'tasks.html', gym: 'gym.html', health: 'health.html', nutrition: 'nutrition.html', finance: 'finance.html' };
+  const pageMap = { home: 'index.html', tasks: 'tasks.html', goals: 'goals.html', gym: 'gym.html', health: 'health.html', nutrition: 'nutrition.html', finance: 'finance.html' };
   window.location.href = pageMap[id] || (id + '.html');
 }
 document.querySelectorAll('.nav-tab').forEach(btn => {
@@ -6402,6 +6428,150 @@ function initMountainsBg() {
   document.body.insertBefore(particles, document.body.firstChild);
   document.body.insertBefore(mist, document.body.firstChild);
   document.body.insertBefore(mountains, document.body.firstChild);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  GOALS SYSTEM  (Calendar + Life-goals)
+//  Calendar entries live in the shared `goals:YYYY-MM-DD` store so they
+//  auto-sync and auto-appear in the Tasks tab. Recurring weekly schedule
+//  templates + life-goals live in their own synced `calendar`/`lifegoals`
+//  app_state stores. Today's recurring blocks are materialized into the
+//  goals store on boot so they show up everywhere without opening Goals.
+// ══════════════════════════════════════════════════════════════════
+const GOALS_SEED_VERSION = 'summer-2026-v1';
+const CAL_SUMMER_UNTIL   = '2026-09-16';   // end of summer / start of college
+const CAL_DOMAIN_VAR = { work:'--accent-work', gym:'--accent-gym', life:'--accent-life', home:'--accent-home', money:'--accent-money', habit:'--accent-habit', sleep:'--accent-sleep' };
+
+// Weekday recurring schedule. `days` uses JS getDay(): 0=Sun … 6=Sat.
+const CAL_TEMPLATES_DEFAULT = [
+  { id:'tpl-deepwork', title:'Quant prep / Coding', domain:'work',  days:[1,2,3,4,5], time:'06:15', durationMin:60,  kind:'task',     protect:true,  until:CAL_SUMMER_UNTIL },
+  { id:'tpl-work',     title:'Work',                domain:'work',  days:[1,2,3,4,5], time:'09:00', durationMin:480, kind:'plan',                    until:CAL_SUMMER_UNTIL },
+  { id:'tpl-ber',      title:'BER work',            domain:'money', days:[1,2,3,4,5], time:'17:30', durationMin:75,  kind:'task',                    until:CAL_SUMMER_UNTIL },
+  { id:'tpl-train',    title:'Training (FB / sprint-pitch)', domain:'gym', days:[1,2,3,4,5], time:'18:30', durationMin:90, kind:'task',              until:CAL_SUMMER_UNTIL },
+  { id:'tpl-rest',     title:'Dinner · downtime · rest', domain:'home', days:[1,2,3,4,5], time:'20:00', durationMin:120, kind:'plan',               until:CAL_SUMMER_UNTIL },
+  { id:'tpl-winddown', title:'Wind down for sleep', domain:'sleep', days:[0,1,2,3,4,5,6], time:'22:45', durationMin:0, kind:'reminder',            until:CAL_SUMMER_UNTIL },
+  { id:'tpl-sql',      title:'SQL block',           domain:'work',  days:[6],         time:'14:00', durationMin:210, kind:'task',                    until:CAL_SUMMER_UNTIL },
+];
+
+// Weekly / daily life-goals seeded from the summer targets.
+const LIFEGOALS_DEFAULT = [
+  { id:'lg-quant',  title:'Quant prep',     domain:'work',  period:'weekly', type:'count', target:5,   unit:'sessions', note:'5–6 mornings/week, 45min min' },
+  { id:'lg-coding', title:'Coding project', domain:'life',  period:'weekly', type:'count', target:2,   unit:'sessions', note:'2–3 mornings/week' },
+  { id:'lg-sql',    title:'SQL',            domain:'work',  period:'weekly', type:'time',  target:200, unit:'min',      note:'one weekend block, 3–4h' },
+  { id:'lg-fb',     title:'FB workouts',    domain:'gym',   period:'weekly', type:'count', target:2,   unit:'workouts', note:'2–3x/week' },
+  { id:'lg-sprint', title:'Sprint / pitch', domain:'gym',   period:'weekly', type:'count', target:1,   unit:'sessions', note:'1–2x/week' },
+  { id:'lg-sleep',  title:'Sleep',          domain:'sleep', period:'daily',  type:'time',  target:450, unit:'min',      note:'7–8h, non-negotiable' },
+];
+
+function calDomainVar(d){ return 'var(' + (CAL_DOMAIN_VAR[d] || '--accent-work') + ')'; }
+function calPad(n){ return String(n).padStart(2,'0'); }
+function calDateStr(d){ return d.getFullYear()+'-'+calPad(d.getMonth()+1)+'-'+calPad(d.getDate()); }
+function calTodayStr(){ return calDateStr(new Date()); }
+function calParse(ds){ const p=String(ds).split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); }   // local midnight
+function calGoalsKey(ds){ return 'goals:'+ds; }
+function calBlockForTime(t){ const h=parseInt(String(t||'09:00').slice(0,2),10)||9; return h<12?'morning':(h<17?'midday':'evening'); }
+function calMinutesOf(t){ const p=String(t||'00:00').split(':'); return (parseInt(p[0],10)||0)*60 + (parseInt(p[1],10)||0); }
+
+// ── Calendar template store (synced via app_state 'calendar') ──────
+function calStore(){
+  const s = (typeof storeGet==='function' ? storeGet('calendar') : null) || {};
+  if (!Array.isArray(s.templates)) s.templates = [];
+  if (!s.exceptions || typeof s.exceptions!=='object') s.exceptions = {};
+  return s;
+}
+function calStoreSave(s){ if (typeof storeSet==='function') storeSet('calendar', s); }
+function calExceptionKey(tplId, ds){ return tplId + '@' + ds; }
+function calAddException(tplId, ds){ const s=calStore(); s.exceptions[calExceptionKey(tplId,ds)] = 1; calStoreSave(s); }
+
+// ── Life-goals store (synced via app_state 'lifegoals') ────────────
+function lifeGoalsStore(){
+  const s = (typeof storeGet==='function' ? storeGet('lifegoals') : null) || {};
+  if (!Array.isArray(s.goals)) s.goals = [];
+  return s;
+}
+function lifeGoalsSave(s){ if (typeof storeSet==='function') storeSet('lifegoals', s); }
+
+// ── Recurrence expansion ───────────────────────────────────────────
+// Virtual instances of weekly templates that apply to a given date and
+// have NOT been overridden by a concrete entry or skipped via exception.
+function calTemplateInstancesFor(ds){
+  const s = calStore();
+  const dow = calParse(ds).getDay();
+  const out = [];
+  s.templates.forEach(tpl => {
+    if (!tpl || !Array.isArray(tpl.days) || tpl.days.indexOf(dow) < 0) return;
+    if (tpl.until && ds > tpl.until) return;
+    if (s.exceptions[calExceptionKey(tpl.id, ds)]) return;
+    out.push({
+      id: 'tpl_' + tpl.id + '_' + ds,
+      tplId: tpl.id,
+      text: tpl.title,
+      domain: tpl.domain,
+      time: tpl.time,
+      durationMin: tpl.durationMin || 0,
+      kind: tpl.kind || 'task',
+      protect: !!tpl.protect,
+      cal: true,
+      tpl: true,           // virtual marker (not yet written to goals store)
+      block: calBlockForTime(tpl.time),
+      done: false
+    });
+  });
+  return out;
+}
+
+// Merged view for a date: concrete goals-store entries + un-materialized
+// virtual template instances (deduped by tplId).
+function calEntriesFor(ds){
+  const concrete = (typeof storeGet==='function' ? storeGet(calGoalsKey(ds)) : null) || [];
+  const haveTpl = new Set(concrete.filter(e=>e&&e.tplId).map(e=>e.tplId));
+  const virtual = calTemplateInstancesFor(ds).filter(v => !haveTpl.has(v.tplId));
+  return concrete.concat(virtual);
+}
+
+// Write today's (or any date's) recurring template instances into the
+// goals store once, so they surface in the Tasks tab. Idempotent: guarded
+// per-date and deduped by tplId, so user edits/deletions are respected.
+function calMaterializeDate(ds){
+  try {
+    const flag = 'cal_mat:' + ds;
+    if (localStorage.getItem(flag)) return;
+    const arr = ((typeof storeGet==='function' ? storeGet(calGoalsKey(ds)) : null) || []).slice();
+    const have = new Set(arr.filter(e=>e&&e.tplId).map(e=>e.tplId));
+    let added = 0;
+    calTemplateInstancesFor(ds).forEach(v => {
+      if (have.has(v.tplId)) return;
+      const copy = Object.assign({}, v); delete copy.tpl;     // becomes concrete
+      arr.push(copy); added++;
+    });
+    if (added && typeof storeSet==='function') storeSet(calGoalsKey(ds), arr);
+    localStorage.setItem(flag, '1');
+  } catch (_) {}
+}
+
+// ── One-time seeding of the summer schedule + life-goals ───────────
+function calSeedDefaultsOnce(){
+  // Templates
+  const cal = calStore();
+  if (cal.seeded !== GOALS_SEED_VERSION) {
+    const have = new Set(cal.templates.map(t=>t.id));
+    CAL_TEMPLATES_DEFAULT.forEach(t => { if (!have.has(t.id)) cal.templates.push(Object.assign({}, t)); });
+    cal.seeded = GOALS_SEED_VERSION;
+    calStoreSave(cal);
+  }
+  // Life-goals
+  const lg = lifeGoalsStore();
+  if (lg.seeded !== GOALS_SEED_VERSION) {
+    const have = new Set(lg.goals.map(g=>g.id));
+    LIFEGOALS_DEFAULT.forEach(g => { if (!have.has(g.id)) lg.goals.push(Object.assign({ log:{} }, g)); });
+    lg.seeded = GOALS_SEED_VERSION;
+    lifeGoalsSave(lg);
+  }
+}
+
+function initGoalsSystem(){
+  calSeedDefaultsOnce();
+  calMaterializeDate(calTodayStr());
 }
 
 initMountainsBg();

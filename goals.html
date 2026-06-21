@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Dashboard — Goals</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="shared.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400..600&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="PO Coach" />
+<meta name="theme-color" content="#050506" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<style>
+@keyframes goSlideIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes goSheetIn { from { opacity: 0; transform: translateY(24px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes goFade { from { opacity: 0; } to { opacity: 1; } }
+
+#page-goals .container { padding-bottom: 96px; }
+
+/* ── Page header ─────────────────────────────────────── */
+.go-head { margin: 4px 0 16px; animation: goSlideIn 0.5s var(--ease-out-expo) both; }
+.go-eyebrow { font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+.go-title { font-family: 'Fraunces', Georgia, serif; font-size: clamp(28px, 8vw, 40px); font-weight: 500; letter-spacing: -0.015em; line-height: 1.04; color: var(--text-primary); }
+.go-title .it { font-style: italic; }
+
+/* ── Sub-tab segmented control ───────────────────────── */
+.go-subtabs { display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); margin-bottom: 18px; animation: goSlideIn 0.5s var(--ease-out-expo) both; animation-delay: 0.04s; }
+.go-subtab { flex: 1; padding: 11px 8px; border: none; border-radius: 11px; background: transparent; color: var(--text-tertiary); font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: color 0.2s, background 0.25s var(--ease-out-expo); -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.go-subtab svg { width: 15px; height: 15px; }
+.go-subtab.active { background: rgba(255,255,255,0.07); color: var(--text-primary); box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 14px rgba(0,0,0,0.3); }
+.go-subtab:focus-visible { outline: 2px solid var(--accent-work); outline-offset: 2px; }
+
+.go-panel { display: none; animation: goFade 0.35s var(--ease-out-expo) both; }
+.go-panel.active { display: block; }
+
+/* ── Calendar toolbar ────────────────────────────────── */
+.cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.cal-period { font-family: 'Fraunces', Georgia, serif; font-size: 21px; font-weight: 500; letter-spacing: -0.01em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.cal-nav { display: flex; align-items: center; gap: 6px; }
+.cal-iconbtn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.03); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color 0.2s, color 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent; }
+.cal-iconbtn:hover { border-color: rgba(255,255,255,0.22); color: var(--text-primary); }
+.cal-iconbtn:focus-visible { outline: 2px solid var(--accent-work); outline-offset: 2px; }
+.cal-today { padding: 0 14px; height: 36px; border-radius: 10px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.03); color: var(--text-secondary); font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: border-color 0.2s, color 0.2s; -webkit-tap-highlight-color: transparent; }
+.cal-today:hover { border-color: rgba(255,255,255,0.22); color: var(--text-primary); }
+
+.cal-viewtoggle { display: flex; gap: 3px; padding: 3px; border-radius: 11px; background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); margin-bottom: 14px; }
+.cal-viewbtn { flex: 1; padding: 8px 6px; border: none; border-radius: 8px; background: transparent; color: var(--text-tertiary); font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: color 0.2s, background 0.25s var(--ease-out-expo); -webkit-tap-highlight-color: transparent; }
+.cal-viewbtn.active { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.cal-viewbtn:focus-visible { outline: 2px solid var(--accent-work); outline-offset: 1px; }
+
+/* ── Week view ───────────────────────────────────────── */
+.cal-wk { border: 1px solid var(--hairline); border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.012); }
+.cal-wk-head, .cal-wk-allday { display: grid; grid-template-columns: 40px repeat(7, 1fr); }
+.cal-wk-head { border-bottom: 1px solid var(--hairline); }
+.cal-wk-gh { border-right: 1px solid var(--hairline); }
+.cal-wk-dh { padding: 7px 2px 6px; text-align: center; border-right: 1px solid var(--hairline); }
+.cal-wk-dh:last-child { border-right: none; }
+.cal-wk-dow { font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-tertiary); }
+.cal-wk-dnum { font-family: 'Fraunces', Georgia, serif; font-size: 16px; font-weight: 500; color: var(--text-secondary); font-variant-numeric: tabular-nums; margin-top: 2px; line-height: 1; }
+.cal-wk-dh.today .cal-wk-dnum { color: var(--success); }
+.cal-wk-dh.today .cal-wk-dow { color: var(--success); }
+.cal-wk-todaydot { width: 4px; height: 4px; border-radius: 50%; background: var(--success); margin: 3px auto 0; box-shadow: 0 0 6px var(--success); }
+
+.cal-wk-allday { border-bottom: 1px solid var(--hairline); min-height: 22px; background: rgba(255,255,255,0.015); }
+.cal-wk-ad-gh { border-right: 1px solid var(--hairline); display: flex; align-items: center; justify-content: center; }
+.cal-wk-ad-gh span { font-family: ui-monospace,monospace; font-size: 7px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-tertiary); writing-mode: vertical-rl; transform: rotate(180deg); }
+.cal-wk-ad-cell { border-right: 1px solid var(--hairline); padding: 3px 3px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cal-wk-ad-cell:last-child { border-right: none; }
+.cal-ad-chip { font-size: 8.5px; line-height: 1.25; padding: 2px 4px; border-radius: 5px; color: var(--text-primary); background: color-mix(in srgb, var(--ec) 22%, transparent); border-left: 2px solid var(--ec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cal-ad-chip.date { font-weight: 700; }
+
+.cal-wk-scroll { max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; }
+.cal-wk-cols { display: grid; grid-template-columns: 40px repeat(7, 1fr); position: relative; }
+.cal-wk-gutter { position: relative; border-right: 1px solid var(--hairline); }
+.cal-hr-label { position: absolute; right: 4px; transform: translateY(-50%); font-family: ui-monospace,monospace; font-size: 8.5px; color: var(--text-tertiary); white-space: nowrap; }
+.cal-daycol { position: relative; border-right: 1px solid var(--hairline); }
+.cal-daycol:last-child { border-right: none; }
+.cal-daycol.today { background: color-mix(in srgb, var(--success) 4%, transparent); }
+.cal-hrline { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.045); pointer-events: none; }
+.cal-hrline.half { background: rgba(255,255,255,0.022); }
+.cal-nowline { position: absolute; left: 0; right: 0; height: 1.5px; background: var(--danger); z-index: 5; pointer-events: none; box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 60%, transparent); }
+.cal-nowline::before { content: ''; position: absolute; left: -2px; top: -2.5px; width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
+
+.cal-ev { position: absolute; left: 2px; right: 2px; border-radius: 6px; padding: 3px 4px; overflow: hidden; cursor: pointer; z-index: 3; background: color-mix(in srgb, var(--ec) 20%, #0a0a0c); border-left: 2.5px solid var(--ec); box-shadow: 0 2px 8px rgba(0,0,0,0.35); transition: filter 0.15s, transform 0.12s; }
+.cal-ev:hover { filter: brightness(1.18); }
+.cal-ev:active { transform: scale(0.985); }
+.cal-ev.done { opacity: 0.5; }
+.cal-ev.done .cal-ev-title { text-decoration: line-through; }
+.cal-ev-title { font-size: 9.5px; font-weight: 600; color: var(--text-primary); line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-ev-time { font-family: ui-monospace,monospace; font-size: 8px; color: color-mix(in srgb, var(--ec) 75%, var(--text-tertiary)); margin-top: 1px; }
+.cal-ev.protect { box-shadow: 0 0 0 1px color-mix(in srgb, var(--ec) 50%, transparent), 0 2px 8px rgba(0,0,0,0.4); }
+.cal-ev.protect::after { content: '★'; position: absolute; top: 2px; right: 3px; font-size: 7px; color: var(--ec); }
+.cal-moment { position: absolute; left: 2px; right: 2px; height: 0; z-index: 4; cursor: pointer; }
+.cal-moment-line { position: absolute; left: 0; right: 0; top: -1px; height: 0; border-top: 1.5px dashed var(--ec); }
+.cal-moment-dot { position: absolute; left: 1px; top: -4px; width: 6px; height: 6px; border-radius: 50%; background: var(--ec); box-shadow: 0 0 5px var(--ec); }
+
+/* ── Month view ──────────────────────────────────────── */
+.cal-mo-dows { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 6px; }
+.cal-mo-dow { text-align: center; font-family: ui-monospace,monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
+.cal-mo-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-mcell { min-height: 74px; border-radius: 10px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.018); padding: 5px 5px 4px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; transition: border-color 0.18s, background 0.18s; -webkit-tap-highlight-color: transparent; overflow: hidden; }
+.cal-mcell:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.03); }
+.cal-mcell.dim { opacity: 0.4; }
+.cal-mcell.today { border-color: color-mix(in srgb, var(--success) 55%, transparent); background: color-mix(in srgb, var(--success) 6%, transparent); }
+.cal-mcell-num { font-family: 'Fraunces', Georgia, serif; font-size: 14px; font-weight: 500; color: var(--text-secondary); font-variant-numeric: tabular-nums; line-height: 1; }
+.cal-mcell.today .cal-mcell-num { color: var(--success); }
+.cal-mchip { font-size: 8.5px; line-height: 1.2; padding: 1.5px 4px; border-radius: 4px; color: var(--text-primary); background: color-mix(in srgb, var(--ec) 20%, transparent); border-left: 2px solid var(--ec); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-mchip.date { font-weight: 700; background: color-mix(in srgb, var(--ec) 30%, transparent); }
+.cal-mchip.done { opacity: 0.5; text-decoration: line-through; }
+.cal-mmore { font-family: ui-monospace,monospace; font-size: 8px; color: var(--text-tertiary); padding-left: 2px; }
+
+/* ── Year view ───────────────────────────────────────── */
+.cal-yr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.cal-ymonth { border: 1px solid var(--hairline); border-radius: 12px; padding: 10px 9px; background: rgba(255,255,255,0.015); cursor: pointer; transition: border-color 0.18s, background 0.18s; -webkit-tap-highlight-color: transparent; }
+.cal-ymonth:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.03); }
+.cal-ymonth-name { font-family: 'Fraunces', Georgia, serif; font-size: 14px; font-weight: 500; color: var(--text-primary); margin-bottom: 7px; }
+.cal-ymonth.cur .cal-ymonth-name { color: var(--success); }
+.cal-yr-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-yd { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-family: ui-monospace,monospace; font-size: 8px; color: var(--text-tertiary); border-radius: 3px; position: relative; }
+.cal-yd.pad { visibility: hidden; }
+.cal-yd.today { background: var(--success); color: #050506; font-weight: 700; }
+.cal-yd.has::after { content: ''; position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%); width: 3px; height: 3px; border-radius: 50%; background: var(--ec, var(--accent-work)); }
+.cal-yd.evt { color: var(--text-secondary); }
+
+/* ── Add FAB ─────────────────────────────────────────── */
+.cal-fab { position: fixed; right: 18px; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); z-index: 90; width: 52px; height: 52px; border-radius: 50%; border: none; background: var(--accent-work); color: #06121f; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 8px 24px -6px color-mix(in srgb, var(--accent-work) 70%, transparent), 0 4px 14px rgba(0,0,0,0.5); transition: transform 0.18s var(--ease-spring); -webkit-tap-highlight-color: transparent; }
+.cal-fab:hover { transform: scale(1.06); }
+.cal-fab:active { transform: scale(0.94); }
+.cal-fab:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 3px; }
+
+/* ── Bottom sheet (shared by calendar + goals) ───────── */
+.go-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); display: none; align-items: flex-end; justify-content: center; animation: goFade 0.2s ease both; }
+.go-overlay.open { display: flex; }
+.go-overlay.center { align-items: center; }
+.go-sheet { width: 100%; max-width: 520px; background: #0c0c0e; border: 1px solid var(--hairline); border-bottom: none; border-radius: 22px 22px 0 0; padding: 18px 18px calc(20px + env(safe-area-inset-bottom, 0px)); max-height: 90vh; overflow-y: auto; animation: goSheetIn 0.34s var(--ease-out-expo) both; box-shadow: 0 -16px 48px rgba(0,0,0,0.6); }
+.go-overlay.center .go-sheet { border-radius: 22px; border-bottom: 1px solid var(--hairline); margin: 0 14px; }
+.go-sheet-grip { width: 36px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.18); margin: 0 auto 14px; }
+.go-sheet-title { font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-weight: 500; letter-spacing: -0.01em; color: var(--text-primary); margin-bottom: 16px; }
+.go-field { margin-bottom: 14px; }
+.go-label { display: block; font-family: ui-monospace,monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+.go-input, .go-select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04); color: var(--text-primary); font-size: 15px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+.go-input:focus, .go-select:focus { border-color: color-mix(in srgb, var(--accent-work) 55%, transparent); }
+.go-row { display: flex; gap: 10px; }
+.go-row > * { flex: 1; }
+.go-pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.go-pill { padding: 9px 13px; border-radius: 999px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.03); color: var(--text-secondary); font-size: 12.5px; font-weight: 600; cursor: pointer; transition: border-color 0.18s, background 0.18s, color 0.18s; -webkit-tap-highlight-color: transparent; display: inline-flex; align-items: center; gap: 6px; }
+.go-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pc, var(--text-tertiary)); }
+.go-pill.active { color: var(--text-primary); border-color: color-mix(in srgb, var(--pc, #fff) 55%, transparent); background: color-mix(in srgb, var(--pc, #fff) 14%, transparent); }
+.go-pill:focus-visible { outline: 2px solid var(--accent-work); outline-offset: 2px; }
+.go-seg { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); }
+.go-seg button { flex: 1; padding: 9px 6px; border: none; border-radius: 8px; background: transparent; color: var(--text-tertiary); font-family: ui-monospace,monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: color 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent; }
+.go-seg button.active { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.go-sheet-actions { display: flex; gap: 10px; margin-top: 20px; }
+.go-btn { flex: 1; padding: 14px; border-radius: 13px; border: none; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: transform 0.12s, filter 0.18s; -webkit-tap-highlight-color: transparent; }
+.go-btn:active { transform: scale(0.97); }
+.go-btn-primary { background: var(--accent-work); color: #06121f; }
+.go-btn-primary:hover { filter: brightness(1.08); }
+.go-btn-ghost { background: rgba(255,255,255,0.05); color: var(--text-secondary); border: 1px solid var(--hairline); }
+.go-btn-danger { background: rgba(242,129,138,0.12); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); flex: 0 0 auto; padding: 14px 18px; }
+.go-hint { font-size: 11.5px; color: var(--text-tertiary); margin-top: -6px; margin-bottom: 12px; font-style: italic; }
+
+/* ── Goals (life-goals) panel ────────────────────────── */
+.lg-summary { display: flex; gap: 10px; margin-bottom: 16px; }
+.lg-sumcard { flex: 1; border: 1px solid var(--hairline); border-radius: 14px; padding: 12px 13px; background: rgba(255,255,255,0.018); }
+.lg-sumlabel { font-family: ui-monospace,monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); }
+.lg-sumval { font-family: 'Fraunces', Georgia, serif; font-size: 26px; font-weight: 500; color: var(--text-primary); font-variant-numeric: tabular-nums; margin-top: 4px; line-height: 1; }
+.lg-sumval small { font-size: 13px; color: var(--text-tertiary); }
+
+.lg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lg-card { position: relative; border-radius: 16px; padding: 15px 15px 14px; background: rgba(255,255,255,0.025); border: 1px solid color-mix(in srgb, var(--ac) 26%, transparent); box-shadow: 0 0 24px -16px color-mix(in srgb, var(--ac) 60%, transparent), 0 10px 28px rgba(0,0,0,0.4); cursor: pointer; overflow: hidden; transition: transform 0.22s var(--ease-out-expo), border-color 0.2s; -webkit-tap-highlight-color: transparent; animation: goSlideIn 0.45s var(--ease-out-expo) both; }
+.lg-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--ac) 46%, transparent); }
+.lg-card:active { transform: translateY(0); }
+.lg-card:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.lg-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lg-card-eyebrow { font-family: ui-monospace,monospace; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: color-mix(in srgb, var(--ac) 70%, var(--text-tertiary)); }
+.lg-card-pct { font-family: 'Fraunces', Georgia, serif; font-size: 15px; font-weight: 500; color: var(--ac); font-variant-numeric: tabular-nums; }
+.lg-card-title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-top: 9px; line-height: 1.2; }
+.lg-card-val { font-family: 'Fraunces', Georgia, serif; font-size: 23px; font-weight: 500; color: var(--text-primary); font-variant-numeric: tabular-nums; margin-top: 7px; line-height: 1; }
+.lg-card-val small { font-size: 12px; color: var(--text-tertiary); font-family: inherit; }
+.lg-card-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; margin-top: 11px; }
+.lg-card-fill { height: 100%; border-radius: 3px; background: var(--ac); width: 0; transition: width 0.6s var(--ease-out-expo); box-shadow: 0 0 8px -1px var(--ac); }
+.lg-card.complete .lg-card-fill { background: var(--success); box-shadow: 0 0 8px -1px var(--success); }
+.lg-card-running { position: absolute; top: 11px; right: 13px; display: inline-flex; align-items: center; gap: 4px; font-family: ui-monospace,monospace; font-size: 8.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--success); }
+.lg-card-running .rdot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: goFade 0.8s ease-in-out infinite alternate; }
+.lg-add { border: 1px dashed rgba(255,255,255,0.18); border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 142px; cursor: pointer; color: var(--text-tertiary); background: rgba(255,255,255,0.012); transition: border-color 0.2s, color 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent; }
+.lg-add:hover { border-color: rgba(255,255,255,0.35); color: var(--text-secondary); background: rgba(255,255,255,0.025); }
+.lg-add:focus-visible { outline: 2px solid var(--accent-work); outline-offset: 2px; }
+.lg-add-plus { font-size: 26px; font-weight: 300; line-height: 1; }
+.lg-add-label { font-family: ui-monospace,monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ── Goal detail (gauge sheet) ───────────────────────── */
+.lgd-eyebrow { font-family: ui-monospace,monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: color-mix(in srgb, var(--ac) 72%, var(--text-tertiary)); text-align: center; }
+.lgd-title { font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 500; color: var(--text-primary); text-align: center; margin: 4px 0 2px; }
+.lgd-note { font-size: 12px; color: var(--text-tertiary); text-align: center; font-style: italic; margin-bottom: 6px; }
+.lgd-gauge-wrap { position: relative; width: 100%; max-width: 300px; margin: 2px auto 4px; }
+.lgd-gauge { width: 100%; display: block; }
+.lgd-overlay { position: absolute; left: 0; right: 0; top: 40%; text-align: center; pointer-events: none; }
+.lgd-val { font-family: 'Fraunces', Georgia, serif; font-size: 44px; font-weight: 500; line-height: 0.95; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ac); }
+.lgd-of { font-size: 12.5px; color: var(--text-secondary); margin-top: 4px; }
+.lgd-pct { font-family: ui-monospace,monospace; font-size: 11px; color: var(--text-tertiary); margin-top: 2px; letter-spacing: 0.05em; }
+.lgd-controls { margin-top: 4px; }
+.lgd-quick { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-bottom: 12px; }
+.lgd-chip { padding: 9px 14px; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--ac) 30%, transparent); background: color-mix(in srgb, var(--ac) 8%, transparent); color: var(--ac); font-family: ui-monospace,monospace; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 0.16s, transform 0.1s; -webkit-tap-highlight-color: transparent; }
+.lgd-chip:hover { background: color-mix(in srgb, var(--ac) 18%, transparent); }
+.lgd-chip:active { transform: scale(0.95); }
+.lgd-timerbtn { width: 100%; padding: 15px; border-radius: 13px; border: 1px solid color-mix(in srgb, var(--ac) 40%, transparent); background: color-mix(in srgb, var(--ac) 12%, transparent); color: var(--ac); font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; transition: background 0.18s, transform 0.12s; -webkit-tap-highlight-color: transparent; }
+.lgd-timerbtn:active { transform: scale(0.98); }
+.lgd-timerbtn.running { background: rgba(242,129,138,0.12); border-color: color-mix(in srgb, var(--danger) 40%, transparent); color: var(--danger); }
+.lgd-timerbtn svg { width: 17px; height: 17px; }
+.lgd-elapsed { font-family: ui-monospace,monospace; font-variant-numeric: tabular-nums; }
+.lgd-secondary { display: flex; gap: 9px; margin-top: 12px; }
+.lgd-sbtn { flex: 1; padding: 11px; border-radius: 11px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.04); color: var(--text-secondary); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: border-color 0.18s, color 0.18s; -webkit-tap-highlight-color: transparent; }
+.lgd-sbtn:hover { border-color: rgba(255,255,255,0.22); color: var(--text-primary); }
+.lgd-sbtn.danger:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+
+.go-empty { text-align: center; color: var(--text-tertiary); font-size: 13px; font-style: italic; padding: 24px 0; }
+
+@media (max-width: 360px) {
+  .lg-grid { grid-template-columns: 1fr; }
+  .cal-yr-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .go-panel, .lg-card, .go-head, .go-subtabs, .go-sheet, .lg-card-fill { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body class="grain-overlay">
+<!-- Auth overlay -->
+<div class="auth-overlay hidden" id="authOverlay">
+  <div class="auth-card">
+    <div class="auth-title">My Dashboard</div>
+    <p class="auth-sub">Sign in to sync your goals across all your devices.</p>
+    <button class="auth-sign-in-btn" id="signInBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="appContainer"><div class="tab-page active" id="page-goals">
+<div class="container">
+
+  <div class="go-head">
+    <div class="go-eyebrow" id="goEyebrow">Plan · Track · Protect the rhythm</div>
+    <h1 class="go-title">Goals &amp; <span class="it">Calendar</span></h1>
+  </div>
+
+  <div class="go-subtabs" role="tablist">
+    <button class="go-subtab active" id="subtabCal" role="tab" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>
+      Calendar
+    </button>
+    <button class="go-subtab" id="subtabGoals" role="tab" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>
+      Goals
+    </button>
+  </div>
+
+  <!-- ── CALENDAR PANEL ── -->
+  <div class="go-panel active" id="panelCal">
+    <div class="cal-toolbar">
+      <div class="cal-period" id="calPeriod">—</div>
+      <div class="cal-nav">
+        <button class="cal-iconbtn" id="calPrev" aria-label="Previous"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <button class="cal-today" id="calToday">Today</button>
+        <button class="cal-iconbtn" id="calNext" aria-label="Next"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+    </div>
+    <div class="cal-viewtoggle" role="tablist">
+      <button class="cal-viewbtn active" data-view="week">Week</button>
+      <button class="cal-viewbtn" data-view="month">Month</button>
+      <button class="cal-viewbtn" data-view="year">Year</button>
+    </div>
+    <div id="calBody"></div>
+  </div>
+
+  <!-- ── GOALS PANEL ── -->
+  <div class="go-panel" id="panelGoals">
+    <div class="lg-summary" id="lgSummary"></div>
+    <div class="lg-grid" id="lgGrid"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- Add-event FAB (calendar only) -->
+<button class="cal-fab" id="calFab" aria-label="Add to calendar">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<!-- Calendar add/edit sheet -->
+<div class="go-overlay" id="calSheetOverlay">
+  <div class="go-sheet" id="calSheet" role="dialog" aria-modal="true">
+    <div class="go-sheet-grip"></div>
+    <div class="go-sheet-title" id="calSheetTitle">New entry</div>
+    <div class="go-field">
+      <label class="go-label" for="calfTitle">Title</label>
+      <input class="go-input" id="calfTitle" type="text" placeholder="What is it?" autocomplete="off">
+    </div>
+    <div class="go-field">
+      <label class="go-label">Type</label>
+      <div class="go-seg" id="calfType">
+        <button data-k="task" class="active">Task</button>
+        <button data-k="plan">Plan</button>
+        <button data-k="date">Date</button>
+        <button data-k="reminder">Reminder</button>
+      </div>
+    </div>
+    <div class="go-field">
+      <label class="go-label">Category</label>
+      <div class="go-pills" id="calfDomain"></div>
+    </div>
+    <div class="go-field">
+      <label class="go-label" for="calfDate">Date</label>
+      <input class="go-input" id="calfDate" type="date">
+    </div>
+    <div class="go-field" id="calfTimeField">
+      <div class="go-row">
+        <div>
+          <label class="go-label" for="calfTime">Start</label>
+          <input class="go-input" id="calfTime" type="time" value="09:00">
+        </div>
+        <div>
+          <label class="go-label" for="calfDur">Minutes</label>
+          <input class="go-input" id="calfDur" type="number" min="0" step="5" value="60">
+        </div>
+      </div>
+    </div>
+    <div class="go-sheet-actions">
+      <button class="go-btn go-btn-danger" id="calfDelete" style="display:none;" aria-label="Delete">Delete</button>
+      <button class="go-btn go-btn-ghost" id="calfCancel">Cancel</button>
+      <button class="go-btn go-btn-primary" id="calfSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Goal detail (gauge) sheet -->
+<div class="go-overlay center" id="lgDetailOverlay">
+  <div class="go-sheet" id="lgDetail" role="dialog" aria-modal="true"></div>
+</div>
+
+<!-- Add/edit goal sheet -->
+<div class="go-overlay" id="lgEditOverlay">
+  <div class="go-sheet" id="lgEdit" role="dialog" aria-modal="true">
+    <div class="go-sheet-grip"></div>
+    <div class="go-sheet-title" id="lgEditTitle">New goal</div>
+    <div class="go-field">
+      <label class="go-label" for="lgfTitle">Title</label>
+      <input class="go-input" id="lgfTitle" type="text" placeholder="e.g. Read 30 pages" autocomplete="off">
+    </div>
+    <div class="go-field">
+      <label class="go-label">Category</label>
+      <div class="go-pills" id="lgfDomain"></div>
+    </div>
+    <div class="go-field">
+      <label class="go-label">Resets</label>
+      <div class="go-seg" id="lgfPeriod">
+        <button data-k="daily">Daily</button>
+        <button data-k="weekly" class="active">Weekly</button>
+        <button data-k="monthly">Monthly</button>
+      </div>
+    </div>
+    <div class="go-field">
+      <label class="go-label">Type</label>
+      <div class="go-seg" id="lgfType">
+        <button data-k="time" class="active">Time</button>
+        <button data-k="count">Count</button>
+      </div>
+    </div>
+    <div class="go-field">
+      <div class="go-row">
+        <div>
+          <label class="go-label" for="lgfTarget" id="lgfTargetLabel">Target (hours)</label>
+          <input class="go-input" id="lgfTarget" type="number" min="0" step="0.5" value="3">
+        </div>
+        <div id="lgfUnitField">
+          <label class="go-label" for="lgfUnit">Unit</label>
+          <input class="go-input" id="lgfUnit" type="text" value="sessions" placeholder="sessions">
+        </div>
+      </div>
+    </div>
+    <div class="go-sheet-actions">
+      <button class="go-btn go-btn-danger" id="lgfDelete" style="display:none;">Delete</button>
+      <button class="go-btn go-btn-ghost" id="lgfCancel">Cancel</button>
+      <button class="go-btn go-btn-primary" id="lgfSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav" aria-label="Main navigation">
+  <button class="nav-tab" data-tab="home" aria-label="Home">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>
+    </div>
+    <span class="nav-tab-label">Home</span>
+  </button>
+  <button class="nav-tab" data-tab="tasks" aria-label="Tasks">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    </div>
+    <span class="nav-tab-label">Tasks</span>
+  </button>
+  <button class="nav-tab active" data-tab="goals" aria-label="Goals">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>
+    </div>
+    <span class="nav-tab-label">Goals</span>
+  </button>
+  <button class="nav-tab" data-tab="gym" aria-label="Gym">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="2" height="6" rx="0.5"/><rect x="4.5" y="7.5" width="3" height="9" rx="0.5"/><line x1="7.5" y1="12" x2="16.5" y2="12"/><rect x="16.5" y="7.5" width="3" height="9" rx="0.5"/><rect x="20" y="9" width="2" height="6" rx="0.5"/></svg>
+    </div>
+    <span class="nav-tab-label">Gym</span>
+  </button>
+  <button class="nav-tab" data-tab="health" aria-label="Health">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+    </div>
+    <span class="nav-tab-label">Health</span>
+  </button>
+  <button class="nav-tab" data-tab="nutrition" aria-label="Nutrition">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v6c0 1.1.9 2 2 2a2 2 0 002-2V3"/><line x1="5" y1="9" x2="5" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><path d="M15 3a4 4 0 014 4v1h-4"/></svg>
+    </div>
+    <span class="nav-tab-label">Nutrition</span>
+  </button>
+  <button class="nav-tab" data-tab="finance" aria-label="Finance">
+    <div class="nav-tab-indicator"></div>
+    <div class="nav-tab-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="4" height="7"/><rect x="9" y="8" width="4" height="13"/><rect x="16" y="4" width="4" height="17"/><line x1="1" y1="21" x2="23" y2="21"/></svg>
+    </div>
+    <span class="nav-tab-label">Finance</span>
+  </button>
+</nav>
+</div>
+
+<script src="shared.js"></script>
+<script src="goals-page.js"></script>
+</body>
+</html>
