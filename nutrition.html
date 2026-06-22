@@ -79,6 +79,9 @@
 
   <!-- Calorie ring hero -->
   <div class="nutr-hero">
+    <button class="nutr-hero-edit" id="nutrGoalsBtn" type="button" aria-label="Edit daily goals">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    </button>
     <div class="nutr-ring-wrap">
       <svg class="nutr-ring-svg" viewBox="0 0 188 188" aria-hidden="true">
         <defs>
@@ -185,6 +188,37 @@
     <button class="nutr-panel-gear" id="nutrMicroSettingsOpen" type="button">Edit tracked</button>
   </div>
   <div class="nutr-panel-body" id="nutrAllMicrosList"></div>
+</div>
+
+<!-- Daily Goals Panel -->
+<div class="nutr-panel" id="nutrGoalsPanel">
+  <div class="nutr-panel-hdr">
+    <button class="nutr-panel-back" id="nutrGoalsBack">←</button>
+    <span class="nutr-panel-title">DAILY GOALS</span>
+  </div>
+  <div class="nutr-panel-body">
+    <label class="nutr-modal-lbl">Calorie goal (kcal)</label>
+    <input class="nutr-modal-in" id="nutrGoalCal" type="number" min="0" step="10" inputmode="numeric" placeholder="2400">
+    <div class="nutr-goals-grid">
+      <div>
+        <label class="nutr-modal-lbl">Protein (g)</label>
+        <input class="nutr-modal-in" id="nutrGoalPro" type="number" min="0" inputmode="numeric" placeholder="180">
+      </div>
+      <div>
+        <label class="nutr-modal-lbl">Carbs (g)</label>
+        <input class="nutr-modal-in" id="nutrGoalCarb" type="number" min="0" inputmode="numeric" placeholder="260">
+      </div>
+      <div>
+        <label class="nutr-modal-lbl">Fat (g)</label>
+        <input class="nutr-modal-in" id="nutrGoalFat" type="number" min="0" inputmode="numeric" placeholder="75">
+      </div>
+    </div>
+    <div class="nutr-goals-hint" id="nutrGoalsHint"></div>
+    <div class="nutr-goals-actions">
+      <button class="nutr-goals-reset" id="nutrGoalsReset" type="button">Reset to defaults</button>
+      <button class="nutr-modal-save" id="nutrGoalsSave" type="button">Save goals</button>
+    </div>
+  </div>
 </div>
 
 <!-- Templates Panel -->

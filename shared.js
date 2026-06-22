@@ -6271,8 +6271,64 @@ function buildMicroAdvancedSection() {
   });
 }
 
+// ── Daily calorie + macro goals ─────────────────────────────
+function openGoalsPanel() {
+  const t = loadNutritionData().targets || {};
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = (v != null ? v : ''); };
+  set('nutrGoalCal',  t.calories);
+  set('nutrGoalPro',  t.protein);
+  set('nutrGoalCarb', t.carbs);
+  set('nutrGoalFat',  t.fat);
+  nutrUpdateGoalsHint();
+  document.getElementById('nutrGoalsPanel')?.classList.add('open');
+}
+
+function nutrUpdateGoalsHint() {
+  const hint = document.getElementById('nutrGoalsHint');
+  if (!hint) return;
+  const num = id => Math.max(0, parseFloat(document.getElementById(id)?.value) || 0);
+  const cal = num('nutrGoalCal'), pro = num('nutrGoalPro'), carb = num('nutrGoalCarb'), fat = num('nutrGoalFat');
+  const macroCal = Math.round(pro * 4 + carb * 4 + fat * 9);
+  const diff = macroCal - cal;
+  let tail = '';
+  if (cal) {
+    if (Math.abs(diff) <= 20)   tail = ' — matches your calorie goal';
+    else if (diff > 0)          tail = ` — <span class="over">${diff.toLocaleString()} over</span> your ${cal.toLocaleString()} kcal goal`;
+    else                        tail = ` — ${Math.abs(diff).toLocaleString()} under your ${cal.toLocaleString()} kcal goal`;
+  }
+  hint.innerHTML = `Macros add up to <b>${macroCal.toLocaleString()} kcal</b>${tail}`;
+}
+
+function saveGoals() {
+  const data = loadNutritionData();
+  const t = data.targets || {};
+  const num = (id, fallback) => { const v = parseFloat(document.getElementById(id)?.value); return (isNaN(v) || v < 0) ? fallback : Math.round(v); };
+  data.targets = {
+    calories: num('nutrGoalCal',  t.calories || 2400),
+    protein:  num('nutrGoalPro',  t.protein  || 180),
+    carbs:    num('nutrGoalCarb', t.carbs    || 260),
+    fat:      num('nutrGoalFat',  t.fat      || 75),
+  };
+  saveNutritionData(data);
+  document.getElementById('nutrGoalsPanel')?.classList.remove('open');
+  renderNutrition();
+}
+
+function resetGoals() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('nutrGoalCal', 2400); set('nutrGoalPro', 180); set('nutrGoalCarb', 260); set('nutrGoalFat', 75);
+  nutrUpdateGoalsHint();
+}
+
 function initNutritionPage() {
   buildMicroAdvancedSection();
+  // Daily goals editor
+  document.getElementById('nutrGoalsBtn')?.addEventListener('click', openGoalsPanel);
+  document.getElementById('nutrGoalsBack')?.addEventListener('click', () => document.getElementById('nutrGoalsPanel')?.classList.remove('open'));
+  document.getElementById('nutrGoalsSave')?.addEventListener('click', saveGoals);
+  document.getElementById('nutrGoalsReset')?.addEventListener('click', resetGoals);
+  ['nutrGoalCal', 'nutrGoalPro', 'nutrGoalCarb', 'nutrGoalFat'].forEach(id =>
+    document.getElementById(id)?.addEventListener('input', nutrUpdateGoalsHint));
   document.getElementById('nutrLogBtn')?.addEventListener('click', () => openAddMealModal());
   document.getElementById('nutrMModalCancel')?.addEventListener('click', closeAddMealModal);
   document.getElementById('nutrMealModal')?.querySelector('.nutr-modal-bg')?.addEventListener('click', closeAddMealModal);
