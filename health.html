@@ -123,12 +123,49 @@
 .hlth-body-modal-btn { background: var(--success); color: #050506; border: none; border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .hlth-body-modal-divider { height: 1px; background: rgba(255,255,255,0.07); margin-bottom: 20px; }
 
-/* ── Health tab switcher ──────────────────────────────────── */
-.hlth-tab-bar { display:flex; gap:4px; margin-bottom:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:4px; }
-.hlth-tab-btn { flex:1; padding:8px 4px; border:none; border-radius:8px; background:transparent; color:var(--text-tertiary); font-family:ui-monospace,monospace; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; transition:background 0.18s, color 0.18s; }
-.hlth-tab-btn.active { background:rgba(255,255,255,0.1); color:var(--text-primary); }
+/* ── Health section switcher (nav-driven carousel) ─────────── */
+.hlth-switch { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.hlth-switch-head { min-width:0; }
+.hlth-switch-title { font-family:var(--font-display-serif); font-size:22px; font-weight:600; line-height:1.05; letter-spacing:-0.01em; color:var(--text-primary); }
+.hlth-switch-cap { font-family:ui-monospace,monospace; font-size:8.5px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-tertiary); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hlth-switch-dots { display:flex; align-items:center; gap:2px; flex-shrink:0; }
+.hlth-dot { -webkit-tap-highlight-color:transparent; appearance:none; background:none; border:none; cursor:pointer; padding:11px 4px; display:flex; align-items:center; }
+.hlth-dot-shape { display:block; width:7px; height:7px; border-radius:999px; background:rgba(255,255,255,0.18); transition:width 0.3s cubic-bezier(0.23,1,0.32,1), background 0.2s; }
+.hlth-dot.active .hlth-dot-shape { width:20px; background:var(--success); box-shadow:0 0 8px rgba(107,227,164,0.5); }
+.hlth-dot:focus-visible { outline:none; }
+.hlth-dot:focus-visible .hlth-dot-shape { outline:2px solid var(--success); outline-offset:3px; }
+
 .hlth-panel { display:none; }
 .hlth-panel.active { display:block; }
+.hlth-panel.hlth-enter { animation:hlthPanelIn 0.26s cubic-bezier(0.23,1,0.32,1) both; }
+@keyframes hlthPanelIn { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
+
+/* ── Runs placeholder ──────────────────────────────────────── */
+.runs-empty { display:flex; flex-direction:column; align-items:center; text-align:center; padding:48px 24px; background:rgba(255,255,255,0.025); border:1px dashed rgba(255,255,255,0.12); border-radius:16px; }
+.runs-empty-icon { width:54px; height:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:rgba(91,184,245,0.08); border:1px solid rgba(91,184,245,0.18); color:#5BB8F5; margin-bottom:16px; }
+.runs-empty-title { font-family:var(--font-display-serif); font-size:20px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+.runs-empty-sub { font-size:13px; color:var(--text-tertiary); line-height:1.55; max-width:300px; }
+.runs-empty-tags { display:flex; gap:7px; margin-top:18px; }
+.runs-empty-tag { font-family:ui-monospace,monospace; font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); border:1px solid rgba(255,255,255,0.12); border-radius:999px; padding:6px 12px; }
+
+/* ── Nav: Health cycle control ─────────────────────────────── */
+.nav-cycle { transition:transform 0.14s cubic-bezier(0.23,1,0.32,1), color 0.2s; }
+.nav-cycle:active { transform:scale(0.93); }
+.nav-cycle-row { display:flex; align-items:center; justify-content:center; gap:4px; }
+.nav-cycle-arrow { display:flex; align-items:center; color:var(--text-tertiary); opacity:0.45; transition:opacity 0.2s, transform 0.2s; }
+.nav-cycle-arrow svg { width:9px; height:9px; }
+.nav-cycle-arrow-fwd { color:var(--success); opacity:0.85; }
+.nav-tab.active .nav-cycle-arrow { opacity:0.6; }
+.nav-tab.active .nav-cycle-arrow-fwd { opacity:0.95; }
+.nav-cycle.cycling .nav-cycle-arrow-fwd { transform:translateX(2px); }
+.nav-cycle.cycling .nav-tab-icon { transform:translateY(-1px) scale(1.08); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hlth-panel.hlth-enter { animation:hlthFadeIn 0.2s ease both; }
+  @keyframes hlthFadeIn { from { opacity:0; } to { opacity:1; } }
+  .nav-cycle:active { transform:none; }
+  .hlth-dot-shape { transition:background 0.2s; }
+}
 
 /* ── Caffeine tracker ─────────────────────────────────────── */
 .caf-hero-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
@@ -294,19 +331,28 @@
 <div class="container">
   <div class="gym-tab-hdr">
     <span class="gym-tab-title">Health</span>
-    <button class="gym-gear-btn" id="suppGearBtn" title="Manage supplements">&#9881;</button>
+    <button class="gym-gear-btn" id="suppGearBtn" title="Manage supplements" style="display:none;">&#9881;</button>
   </div>
 
-  <!-- Tab switcher -->
-  <div class="hlth-tab-bar" id="hlthTabBar">
-    <button class="hlth-tab-btn active" data-panel="recovery">Recovery</button>
-    <button class="hlth-tab-btn" data-panel="caffeine">Peak</button>
-    <button class="hlth-tab-btn" data-panel="hydration">Hydration</button>
+  <!-- Section switcher (driven by the nav cycle button) -->
+  <div class="hlth-switch" id="hlthSwitch">
+    <div class="hlth-switch-head">
+      <div class="hlth-switch-title" id="hlthSwitchTitle">Whoop</div>
+      <div class="hlth-switch-cap" id="hlthSwitchCap">Recovery · Sleep · Strain</div>
+    </div>
+    <div class="hlth-switch-dots" id="hlthSwitchDots">
+      <button class="hlth-dot" data-idx="0" aria-label="Peak"><span class="hlth-dot-shape"></span></button>
+      <button class="hlth-dot" data-idx="1" aria-label="Body"><span class="hlth-dot-shape"></span></button>
+      <button class="hlth-dot" data-idx="2" aria-label="Runs"><span class="hlth-dot-shape"></span></button>
+      <button class="hlth-dot active" data-idx="3" aria-label="Whoop"><span class="hlth-dot-shape"></span></button>
+    </div>
   </div>
 
-  <!-- Recovery panel (Whoop + sleep + recovery data) -->
-  <div id="whoopHealthSection" class="hlth-panel active"></div>
-  <div id="recoveryTipsCard" style="display:none;margin-top:12px;padding:14px 16px;border-radius:12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);"></div>
+  <!-- Whoop / Recovery panel (Whoop + sleep + recovery data) -->
+  <div class="hlth-panel active" id="whoopPanel">
+    <div id="whoopHealthSection"></div>
+    <div id="recoveryTipsCard" style="display:none;margin-top:12px;padding:14px 16px;border-radius:12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);"></div>
+  </div>
 
   <!-- Caffeine panel -->
   <div id="caffeinePanel" class="hlth-panel">
@@ -436,8 +482,24 @@
   </div>
 </div>
 
-  <!-- Hydration + Supplements panel -->
+  <!-- Body panel: Hydration + Body weight + Supplements -->
   <div id="hydrationPanel" class="hlth-panel"></div>
+
+  <!-- Runs panel (placeholder — Strava + sports GPS later) -->
+  <div id="runsPanel" class="hlth-panel">
+    <div class="runs-empty">
+      <div class="runs-empty-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <div class="runs-empty-title">Runs</div>
+      <div class="runs-empty-sub">Your runs and GPS workouts will live here. Strava and sports-GPS sync are coming soon.</div>
+      <div class="runs-empty-tags">
+        <span class="runs-empty-tag">Strava</span>
+        <span class="runs-empty-tag">GPS</span>
+        <span class="runs-empty-tag">Soon</span>
+      </div>
+    </div>
+  </div>
 
 </div>
 
@@ -592,12 +654,16 @@
     </div>
     <span class="nav-tab-label">Gym</span>
   </button>
-  <button class="nav-tab active" data-tab="health" aria-label="Health">
+  <button class="nav-tab active nav-cycle" data-tab="health" data-nav-cycle id="healthCycleBtn" aria-label="Health section — tap to switch">
     <div class="nav-tab-indicator"></div>
-    <div class="nav-tab-icon">
+    <div class="nav-tab-icon" id="healthNavIcon">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
     </div>
-    <span class="nav-tab-label">Health</span>
+    <div class="nav-cycle-row">
+      <span class="nav-cycle-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span>
+      <span class="nav-tab-label" id="healthNavLabel">Whoop</span>
+      <span class="nav-cycle-arrow nav-cycle-arrow-fwd" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+    </div>
   </button>
   <button class="nav-tab" data-tab="nutrition" aria-label="Nutrition">
     <div class="nav-tab-indicator"></div>
@@ -617,37 +683,88 @@
 </div>
 <script src="shared.js"></script>
 <script>
-// ── Health tab switcher ──────────────────────────────────────
+// ── Health section carousel (nav-driven) ──────────────────────
 (function() {
-  var bar = document.getElementById('hlthTabBar');
-  if (!bar) return;
-  bar.addEventListener('click', function(e) {
-    var btn = e.target.closest('.hlth-tab-btn');
-    if (!btn) return;
-    bar.querySelectorAll('.hlth-tab-btn').forEach(function(b) { b.classList.remove('active'); });
-    btn.classList.add('active');
-    var panelId = btn.dataset.panel;
-    document.querySelectorAll('.hlth-panel').forEach(function(p) { p.classList.remove('active'); });
-    var targetEl = panelId === 'recovery' ? 'whoopHealthSection'
-                 : panelId === 'caffeine' ? 'caffeinePanel'
-                 : 'hydrationPanel';
-    var panel = document.getElementById(targetEl);
-    if (panel) panel.classList.add('active');
-    if (panelId === 'caffeine' && window.cafHealthInit) {
-      cafSyncFromShared();
-      cafRerender();
+  var ICONS = {
+    whoop: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+    peak:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>',
+    body:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7S5.5 9.8 5.5 14a6.5 6.5 0 0 0 13 0c0-4.2-6.5-11.3-6.5-11.3z"/></svg>',
+    runs:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>'
+  };
+  // Cycle order (forward-only): Peak → Body → Runs → Whoop → (wrap). Lands on Whoop.
+  var TABS = [
+    { key:'peak',  label:'Peak',  panel:'caffeinePanel',  title:'Peak',  cap:'Energy · Caffeine' },
+    { key:'body',  label:'Body',  panel:'hydrationPanel', title:'Body',  cap:'Hydration · Weight · Supplements' },
+    { key:'runs',  label:'Runs',  panel:'runsPanel',      title:'Runs',  cap:'Strava & GPS — soon' },
+    { key:'whoop', label:'Whoop', panel:'whoopPanel',     title:'Whoop', cap:'Recovery · Sleep · Strain' }
+  ];
+  var ALIAS = { recovery:'whoop', caffeine:'peak', hydration:'body' }; // legacy deep-links
+  var DEFAULT_IDX = 3; // Whoop
+  var cur = -1;
+
+  var btn      = document.getElementById('healthCycleBtn');
+  var navIcon  = document.getElementById('healthNavIcon');
+  var navLabel = document.getElementById('healthNavLabel');
+  var swTitle  = document.getElementById('hlthSwitchTitle');
+  var swCap    = document.getElementById('hlthSwitchCap');
+  var dotsWrap = document.getElementById('hlthSwitchDots');
+  var gearBtn  = document.getElementById('suppGearBtn');
+
+  function idxForKey(k) {
+    k = ALIAS[k] || k;
+    for (var i = 0; i < TABS.length; i++) if (TABS[i].key === k) return i;
+    return -1;
+  }
+
+  function setTab(idx, opts) {
+    opts = opts || {};
+    idx = ((idx % TABS.length) + TABS.length) % TABS.length;
+    if (idx === cur) return;
+    cur = idx;
+    var t = TABS[idx];
+    document.querySelectorAll('.hlth-panel').forEach(function(p) {
+      p.classList.remove('active'); p.classList.remove('hlth-enter');
+    });
+    var panel = document.getElementById(t.panel);
+    if (panel) {
+      panel.classList.add('active');
+      if (opts.animate !== false) { void panel.offsetWidth; panel.classList.add('hlth-enter'); }
     }
+    if (navIcon)  navIcon.innerHTML = ICONS[t.key] || '';
+    if (navLabel) navLabel.textContent = t.label;
+    if (swTitle)  swTitle.textContent = t.title;
+    if (swCap)    swCap.textContent = t.cap;
+    if (dotsWrap) dotsWrap.querySelectorAll('.hlth-dot').forEach(function(d, i) {
+      d.classList.toggle('active', i === idx);
+    });
+    // The supplement gear only makes sense on the Body tab
+    if (gearBtn) gearBtn.style.display = (t.key === 'body') ? '' : 'none';
+    // Peak panel re-syncs its live model each time it's shown
+    if (t.key === 'peak' && typeof cafSyncFromShared === 'function' && typeof cafRerender === 'function') {
+      cafSyncFromShared(); cafRerender();
+    }
+    try { history.replaceState(null, '', '#' + t.key); } catch (e) {}
+  }
+
+  function cycle() {
+    setTab(cur + 1);
+    if (btn) { btn.classList.add('cycling'); setTimeout(function() { btn.classList.remove('cycling'); }, 200); }
+    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
+  }
+
+  if (btn) btn.addEventListener('click', function(e) { e.preventDefault(); cycle(); });
+  if (dotsWrap) dotsWrap.addEventListener('click', function(e) {
+    var d = e.target.closest('.hlth-dot');
+    if (d) setTab(parseInt(d.dataset.idx, 10));
   });
-  function hlthActivate(name) {
-    var b = bar.querySelector('.hlth-tab-btn[data-panel="' + name + '"]');
-    if (b) { b.click(); try { b.scrollIntoView({ block: 'nearest' }); } catch (e) {} }
-  }
-  function hlthApplyHash() {
-    var h = (location.hash || '').replace('#', '');
-    if (['recovery', 'caffeine', 'hydration'].indexOf(h) >= 0) hlthActivate(h);
-  }
-  hlthApplyHash();
-  window.addEventListener('hashchange', hlthApplyHash);
+
+  var startIdx = idxForKey((location.hash || '').replace('#', ''));
+  setTab(startIdx >= 0 ? startIdx : DEFAULT_IDX, { animate: false });
+
+  window.addEventListener('hashchange', function() {
+    var i = idxForKey((location.hash || '').replace('#', ''));
+    if (i >= 0 && i !== cur) setTab(i);
+  });
 })();
 
 // ── Caffeine tracker (health tab embedded) ────────────────────

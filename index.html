@@ -546,7 +546,7 @@
     try { const gs = loadGymState(); workoutLogged = !!(gs && gs.workoutDone && gs.workoutDone[remToday()]); } catch {}
     const chips = ['<span class="rem-label">Today</span>'];
     if (!workoutLogged) chips.push('<button class="rem-chip rem-smart" data-go="gym" style="--rc:var(--accent-gym)"><span class="rem-dot"></span>Log workout</button>');
-    if (!weightLogged)  chips.push('<button class="rem-chip rem-smart" data-go="health#hydration" style="--rc:var(--accent-sleep)"><span class="rem-dot"></span>Log weight</button>');
+    if (!weightLogged)  chips.push('<button class="rem-chip rem-smart" data-go="health#body" style="--rc:var(--accent-sleep)"><span class="rem-dot"></span>Log weight</button>');
     const done = remDoneLoad();
     remLoad().forEach(r => {
       const isDone = !!done[r.id];
@@ -596,7 +596,7 @@
     // Water card → hydration tab; quick-add chips log inline without navigating
     const waterCard = $('waterCard');
     if (waterCard) {
-      const openHydration = () => { window.location.href = 'health.html#hydration'; };
+      const openHydration = () => { window.location.href = 'health.html#body'; };
       waterCard.addEventListener('click', e => { if (!e.target.closest('.wq-chip')) openHydration(); });
       waterCard.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHydration(); } });
     }

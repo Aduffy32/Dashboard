@@ -286,6 +286,27 @@
     lifeGoalsSave(s); renderGoals(); if (openGoalId === id) renderDetail();
   }
 
+  function syncWhoopSleep() {
+    let bridge;
+    try { bridge = JSON.parse(localStorage.getItem('patron_health_v1') || 'null'); } catch (_) { return; }
+    if (!bridge || !bridge.connected || bridge.sleepHours == null) return;
+    const sleepMins = Math.round(bridge.sleepHours * 60);
+    const today = todayStr();
+    const s = lifeGoalsStore();
+    let changed = false;
+    s.goals.forEach(g => {
+      if (g.domain === 'sleep' && g.period === 'daily' && g.type === 'time') {
+        if (!g.log) g.log = {};
+        if (g.log[today] !== sleepMins) { g.log[today] = sleepMins; changed = true; }
+      }
+    });
+    if (changed) {
+      lifeGoalsSave(s);
+      renderGoals();
+      if (openGoalId) { const g = getGoal(openGoalId); if (g && g.domain === 'sleep') renderDetail(); }
+    }
+  }
+
   function startTimer(id) { try { localStorage.setItem(timerKey(id), String(Date.now())); } catch (_) {} ensureTick(); renderGoals(); if (openGoalId === id) renderDetail(); }
   function finishTimer(id) {
     const mins = Math.max(1, Math.round(elapsedMin(id)));
@@ -533,11 +554,15 @@
     // Cross-tab / cross-device updates
     ['goals-changed', 'calendar-changed', 'lifegoals-changed'].forEach(ev => window.addEventListener(ev, () => { if (sub === 'cal') renderCal(); else renderGoals(); }));
 
+    // Whoop sleep auto-sync
+    window.addEventListener('whoop-health-updated', syncWhoopSleep);
+
     // Deep link
     if (location.hash === '#goals') showSub('goals');
     else showSub('cal');
 
     renderCal(); renderGoals();
+    syncWhoopSleep();
     if (anyTimerRunning()) ensureTick();
     [350, 1200, 2600].forEach(ms => setTimeout(() => { if (sub === 'cal') renderCal(); else renderGoals(); }, ms));
   }

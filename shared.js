@@ -4392,6 +4392,7 @@ function writeHealthBridge() {
       updatedAt:    Date.now(),
     };
     localStorage.setItem('patron_health_v1', JSON.stringify(bridge));
+    window.dispatchEvent(new CustomEvent('whoop-health-updated'));
   } catch (e) { /* non-fatal */ }
 }
 
@@ -6110,6 +6111,7 @@ function switchTab(id) {
   window.location.href = pageMap[id] || (id + '.html');
 }
 document.querySelectorAll('.nav-tab').forEach(btn => {
+  if (btn.hasAttribute('data-nav-cycle')) return; // health cycle btn is handled locally on health.html
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
