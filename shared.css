@@ -430,48 +430,59 @@ body::after {
 .habit-dot.today  { outline: 1.5px solid rgba(255,255,255,0.28); outline-offset: 1px; border-radius: 3px; }
 
 /* ── Finance ───────────────────────────────────────────────── */
-.fin-summary-row {
-  display: flex; flex-direction: row; gap: 10px; margin-bottom: 18px; flex-wrap: wrap;
-}
-.fin-stat-chip {
-  flex: 1; min-width: 90px;
-  background: rgba(255,255,255,0.04); border-radius: 14px; padding: 14px 16px;
-  border: 1px solid rgba(255,255,255,0.06);
-  display: flex; flex-direction: column; gap: 5px;
-}
-.fin-stat-label {
-  font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  font-size: 9.5px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-.fin-stat-value {
-  font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
-  color: var(--text-primary);
-}
-.fin-stat-value.income   { color: var(--success); }
-.fin-stat-value.expense  { color: var(--danger); }
-.fin-stat-value.positive { color: var(--success); }
-.fin-stat-value.negative { color: var(--danger); }
+/* Header */
+.fin-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px;padding-top:4px;}
+.fin-header-l{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.fin-eyebrow{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text-tertiary);}
+.fin-title{font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1;background:linear-gradient(180deg,#FFFFFF 0%,#C7C4BC 130%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.fin-header-r{display:flex;align-items:center;gap:8px;flex-shrink:0;padding-top:2px;}
+.fin-add-btn{display:inline-flex;align-items:center;gap:4px;padding:9px 16px;border-radius:999px;border:none;background:linear-gradient(180deg,#FFFFFF 0%,#E9E6DE 100%);color:#0A0A0B;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:-.01em;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.7);transition:transform .16s var(--ease-out-expo),opacity .16s;}
+.fin-add-btn:active{transform:scale(.97);}
 
-.fin-form-row {
-  display: flex; flex-direction: row; gap: 8px; align-items: center; flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-.fin-form-row:last-child { margin-bottom: 0; }
-.fin-type-toggle {
-  display: flex; flex-direction: row; border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
-  overflow: hidden; flex-shrink: 0;
-}
-.fin-type-btn {
-  padding: 10px 14px; border: none; background: none; color: var(--text-tertiary);
-  font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  cursor: pointer; font-family: inherit; transition: background 0.2s, color 0.2s;
-}
-.fin-type-btn.active[data-type="income"]  { background: rgba(107,227,164,0.15); color: var(--success); }
-.fin-type-btn.active[data-type="expense"] { background: rgba(255,107,107,0.15); color: var(--danger); }
+/* Cash-flow hero (spending vs income) */
+.fin-hero{position:relative;border:1px solid var(--hairline);border-radius:24px;padding:22px 20px 18px;margin-bottom:6px;background:radial-gradient(120% 95% at 50% -10%, rgba(138,182,232,.11), transparent 60%), rgba(255,255,255,.035);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);}
+.fin-hero-eyebrow{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-tertiary);text-align:center;}
+.fin-hero-net{font-size:44px;font-weight:800;letter-spacing:-.045em;line-height:1;color:var(--text-primary);font-variant-numeric:tabular-nums;text-align:center;margin-top:7px;}
+.fin-hero-net.neg{color:var(--danger);}
+.fin-hero-net.pos{color:var(--success);}
+.fin-hero-sub{font-size:11.5px;color:var(--text-tertiary);text-align:center;margin-top:7px;}
+.fin-flow{display:flex;flex-direction:column;gap:11px;margin-top:18px;}
+.fin-flow-row{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:10px;}
+.fin-flow-lbl{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary);}
+.fin-flow-track{height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;}
+.fin-flow-fill{height:100%;border-radius:4px;transition:width .65s var(--ease-out-expo);}
+.fin-flow-fill.income{background:var(--success);}
+.fin-flow-fill.expense{background:linear-gradient(90deg,var(--accent-money),var(--danger));}
+.fin-flow-val{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-primary);}
 
+/* Section header */
+.fin-sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;margin-top:26px;padding:0 2px;}
+.fin-sec-title{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-secondary);}
+.fin-sec-action{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary);cursor:pointer;background:none;border:none;transition:color .15s;}
+.fin-sec-action:hover{color:var(--text-secondary);}
+
+/* Subscriptions */
+.fin-subs-summary{display:flex;gap:8px;margin-bottom:10px;}
+.fin-subs-sum{flex:1;background:rgba(255,255,255,.035);border:1px solid var(--hairline);border-radius:14px;padding:12px 10px;display:flex;flex-direction:column;gap:4px;align-items:center;text-align:center;}
+.fin-subs-sum-val{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--text-primary);}
+.fin-subs-sum-lbl{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary);}
+.fin-subs-list{display:flex;flex-direction:column;gap:6px;}
+.fin-sub-row{display:flex;align-items:center;gap:12px;padding:11px 13px;background:rgba(255,255,255,.03);border:1px solid var(--hairline);border-radius:14px;cursor:pointer;transition:background .15s,transform .16s var(--ease-out-expo);}
+.fin-sub-row:active{transform:scale(.99);}
+@media (hover:hover){.fin-sub-row:hover{background:rgba(255,255,255,.05);}}
+.fin-sub-icon{width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.fin-sub-icon svg{width:18px;height:18px;}
+.fin-sub-main{flex:1;min-width:0;}
+.fin-sub-name{font-size:14px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fin-sub-meta{display:flex;align-items:center;gap:7px;margin-top:2px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fin-sub-trial{display:inline-block;padding:1px 6px;border-radius:5px;background:rgba(242,192,99,.15);color:var(--warning);font-weight:700;letter-spacing:.04em;flex-shrink:0;}
+.fin-sub-right{flex-shrink:0;text-align:right;}
+.fin-sub-amount{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-primary);}
+.fin-sub-due{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--text-tertiary);margin-top:2px;}
+.fin-sub-due.soon{color:var(--warning);}
+.fin-sub-due.today{color:var(--danger);}
+
+/* Inputs (shared by modals + panels) */
 .fin-input {
   flex: 1; min-width: 100px; padding: 11px 14px; border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
@@ -490,107 +501,113 @@ select.fin-input {
 }
 select.fin-input option { background: #111113; color: #FAFAFA; }
 
-.fin-txn-group-header {
-  font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--text-tertiary); padding: 16px 0 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 6px;
-}
-.fin-txn-item {
-  display: flex; flex-direction: row; align-items: center; gap: 10px;
-  padding: 10px 12px; margin-bottom: 4px;
-  background: rgba(255,255,255,0.03); border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;
-}
-.fin-txn-item:hover { background: rgba(255,255,255,0.055); }
-.fin-txn-emoji { font-size: 16px; flex-shrink: 0; width: 24px; text-align: center; }
-.fin-txn-info  { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.fin-txn-note  { font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fin-txn-cat   { font-size: 11px; color: var(--text-tertiary); }
-.fin-txn-amount {
-  font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0;
-}
-.fin-txn-amount.income  { color: var(--success); }
-.fin-txn-amount.expense { color: var(--danger); }
-.fin-txn-del {
-  background: none; border: none; cursor: pointer; padding: 4px; font-size: 16px;
-  color: var(--text-tertiary); opacity: 0; transition: opacity 0.2s, color 0.2s; flex-shrink: 0;
-}
-.fin-txn-item:hover .fin-txn-del { opacity: 0.5; }
-.fin-txn-del:hover { color: var(--danger) !important; opacity: 1 !important; }
+/* Segmented control (type / currency / cycle) */
+.fin-seg{display:flex;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);overflow:hidden;}
+.fin-seg-btn{flex:1;padding:9px 10px;border:none;background:none;color:var(--text-tertiary);font-size:12px;font-weight:700;letter-spacing:.04em;cursor:pointer;font-family:inherit;transition:background .15s,color .15s;white-space:nowrap;}
+.fin-seg-btn.active{background:rgba(255,255,255,.10);color:var(--text-primary);}
+.fin-seg-btn.active[data-type="income"]{background:rgba(87,224,161,.16);color:var(--success);}
+.fin-seg-btn.active[data-type="expense"]{background:rgba(242,129,138,.16);color:var(--danger);}
 
-/* ── Finance — Budgets ─────────────────────────────────────── */
-.fin-budget-card {
-  background: rgba(255,255,255,0.035); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;
-  border: 1px solid rgba(255,255,255,0.06); transition: background 0.2s;
-}
-.fin-budget-card:hover { background: rgba(255,255,255,0.055); }
-.fin-budget-header { display: flex; flex-direction: row; align-items: center; gap: 10px; margin-bottom: 10px; }
-.fin-budget-left  { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-.fin-budget-emoji { font-size: 16px; flex-shrink: 0; }
-.fin-budget-cat   { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.fin-budget-amounts {
-  font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  font-size: 12px; font-variant-numeric: tabular-nums; flex-shrink: 0;
-}
-.fin-budget-spent       { color: var(--text-primary); font-weight: 700; }
-.fin-budget-spent.over  { color: var(--danger); }
-.fin-budget-limit       { color: var(--text-tertiary); }
-.fin-budget-bar-wrap {
-  height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;
-}
-.fin-budget-bar {
-  height: 100%; border-radius: 3px;
-  transition: width 0.6s cubic-bezier(0.22,1,0.36,1), background 0.4s;
-}
-.fin-budget-bar.safe    { background: var(--success); box-shadow: 0 0 6px rgba(107,227,164,0.3); }
-.fin-budget-bar.warning { background: var(--warning); box-shadow: 0 0 6px rgba(242,192,99,0.3); }
-.fin-budget-bar.danger  { background: var(--danger);  box-shadow: 0 0 6px rgba(255,107,107,0.3); }
-.fin-budget-del {
-  background: none; border: none; cursor: pointer; padding: 4px; font-size: 16px;
-  color: var(--text-tertiary); opacity: 0; transition: opacity 0.2s, color 0.2s; flex-shrink: 0;
-}
-.fin-budget-card:hover .fin-budget-del { opacity: 0.5; }
-.fin-budget-del:hover { color: var(--danger) !important; opacity: 1 !important; }
+/* Transactions */
+.fin-txn-group-header{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-tertiary);padding:18px 2px 8px;}
+.fin-txn-item{display:flex;align-items:center;gap:11px;padding:10px 12px;margin-bottom:4px;background:rgba(255,255,255,.03);border-radius:12px;border:1px solid var(--hairline);transition:background .2s;}
+@media (hover:hover){.fin-txn-item:hover{background:rgba(255,255,255,.055);}}
+.fin-txn-icon{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.fin-txn-icon svg{width:16px;height:16px;}
+.fin-txn-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.fin-txn-note{font-size:13.5px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fin-txn-cat{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;color:var(--text-tertiary);letter-spacing:.04em;}
+.fin-txn-amount{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0;}
+.fin-txn-amount.income{color:var(--success);}
+.fin-txn-amount.expense{color:var(--text-primary);}
+.fin-txn-del{background:none;border:none;cursor:pointer;padding:6px;font-size:16px;color:var(--text-tertiary);opacity:.35;transition:opacity .2s,color .2s;flex-shrink:0;line-height:1;}
+@media (hover:hover){.fin-txn-item:hover .fin-txn-del{opacity:.5;}}
+.fin-txn-del:hover{color:var(--danger);opacity:1;}
 
-/* ── Finance — Spending Chart ──────────────────────────────── */
-.fin-chart-wrap { margin-bottom: 18px; }
-.fin-chart-svg  { width: 100%; display: block; }
-.fin-chart-bar  { fill: #F2C063; transition: opacity 0.15s; cursor: default; }
-.fin-chart-bar:hover  { opacity: 0.65; }
-.fin-chart-bar.is-today { fill: #FFE08A; }
-.fin-chart-zero { fill: rgba(255,255,255,0.07); }
-.fin-chart-label {
-  font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  fill: var(--text-tertiary); font-size: 7.5px;
-}
-.fin-chart-baseline { stroke: rgba(255,255,255,0.07); stroke-width: 1; }
-.fin-chart-tooltip {
-  position: fixed; z-index: 200; pointer-events: none;
-  background: rgba(14,14,16,0.96); border: 1px solid rgba(255,255,255,0.11);
-  border-radius: 8px; padding: 5px 10px;
-  font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  font-size: 11px; color: #FAFAFA; white-space: nowrap;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  opacity: 0; transition: opacity 0.1s;
-}
-.fin-chart-tooltip.visible { opacity: 1; }
-.fin-networth-card { padding:16px 18px; }
-.fin-nw-total-row { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px; }
-.fin-nw-total { font-size:36px; font-weight:800; letter-spacing:-0.04em; font-variant-numeric:tabular-nums; color:var(--text-primary); line-height:1; }
-.fin-nw-edit-btn { appearance:none; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.10); border-radius:8px; color:var(--text-tertiary); font-size:11px; font-weight:700; padding:5px 10px; cursor:pointer; font-family:inherit; }
-.fin-nw-edit-btn:hover { border-color:rgba(255,255,255,0.22); color:var(--text-secondary); }
-.fin-nw-accounts { display:flex; flex-direction:column; gap:6px; }
-.fin-nw-account { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:10px; }
-.fin-nw-acc-name { font-size:13px; font-weight:600; color:var(--text-primary); }
-.fin-nw-acc-type { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:9px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); margin-top:2px; }
-.fin-nw-acc-balance { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--text-primary); }
-.fin-acc-edit-row { display:flex; align-items:center; gap:8px; padding:10px 12px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:10px; margin-bottom:6px; }
-.fin-acc-edit-info { flex:1; min-width:0; }
-.fin-acc-bal-in { width:110px; flex-shrink:0; padding:7px 10px; border-radius:9px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.10); color:var(--text-primary); font-family:ui-monospace,monospace; font-size:13px; text-align:right; outline:none; }
-.fin-acc-del-btn { background:none; border:none; cursor:pointer; color:var(--text-tertiary); font-size:16px; padding:4px; }
-.fin-acc-del-btn:hover { color:var(--danger); }
+/* Budgets */
+.fin-budget-card{background:rgba(255,255,255,.035);border:1px solid var(--hairline);border-radius:14px;padding:13px 15px;margin-bottom:8px;transition:background .2s;}
+@media (hover:hover){.fin-budget-card:hover{background:rgba(255,255,255,.05);}}
+.fin-budget-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.fin-budget-icon{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.fin-budget-icon svg{width:15px;height:15px;}
+.fin-budget-cat{font-size:13px;font-weight:600;color:var(--text-primary);flex:1;min-width:0;}
+.fin-budget-amounts{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;font-variant-numeric:tabular-nums;flex-shrink:0;}
+.fin-budget-spent{color:var(--text-primary);font-weight:700;}
+.fin-budget-spent.over{color:var(--danger);}
+.fin-budget-limit{color:var(--text-tertiary);}
+.fin-budget-bar-wrap{position:relative;height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;}
+.fin-budget-bar{height:100%;border-radius:4px;transition:width .6s var(--ease-out-expo),background .4s;}
+.fin-budget-bar.safe{background:var(--success);}
+.fin-budget-bar.warning{background:var(--warning);}
+.fin-budget-bar.danger{background:var(--danger);}
+.fin-budget-foot{display:flex;align-items:center;justify-content:space-between;margin-top:7px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:9.5px;letter-spacing:.04em;color:var(--text-tertiary);}
+.fin-budget-foot .sub{color:var(--accent-sleep);}
+.fin-budget-del{background:none;border:none;cursor:pointer;padding:4px;font-size:15px;color:var(--text-tertiary);opacity:.4;transition:opacity .2s,color .2s;flex-shrink:0;line-height:1;}
+@media (hover:hover){.fin-budget-card:hover .fin-budget-del{opacity:.6;}}
+.fin-budget-del:hover{color:var(--danger);opacity:1;}
+
+/* Spending chart (area + line) */
+.fin-chart-card{margin-bottom:4px;}
+.fin-chart-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;}
+.fin-chart-total{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px;font-weight:700;color:var(--text-secondary);font-variant-numeric:tabular-nums;}
+.fin-chart-svg{width:100%;display:block;overflow:visible;}
+.fin-chart-line{fill:none;stroke:var(--warning);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
+.fin-chart-dot{fill:var(--warning);}
+.fin-chart-dot.is-today{fill:#FFE08A;stroke:#050506;stroke-width:2;}
+.fin-chart-baseline{stroke:rgba(255,255,255,.08);stroke-width:1;}
+.fin-chart-label{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;fill:var(--text-tertiary);font-size:8px;}
+.fin-chart-hit{fill:transparent;cursor:default;}
+.fin-chart-tooltip{position:fixed;z-index:200;pointer-events:none;background:rgba(14,14,16,.96);border:1px solid rgba(255,255,255,.11);border-radius:8px;padding:5px 10px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11px;color:#FAFAFA;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.5);opacity:0;transition:opacity .1s;}
+.fin-chart-tooltip.visible{opacity:1;}
+
+/* Net worth */
+.fin-nw-card{padding:16px 18px;}
+.fin-nw-total-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:3px;}
+.fin-nw-total{font-size:34px;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums;color:var(--text-primary);line-height:1;}
+.fin-nw-sub{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;letter-spacing:.04em;color:var(--text-tertiary);margin-bottom:14px;}
+.fin-nw-accounts{display:flex;flex-direction:column;gap:6px;}
+.fin-nw-account{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:rgba(255,255,255,.03);border:1px solid var(--hairline);border-radius:11px;}
+.fin-nw-acc-name{font-size:13px;font-weight:600;color:var(--text-primary);}
+.fin-nw-acc-type{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-tertiary);margin-top:2px;}
+.fin-nw-acc-balance{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-primary);}
+.fin-acc-edit-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(255,255,255,.03);border:1px solid var(--hairline);border-radius:11px;margin-bottom:6px;}
+.fin-acc-edit-info{flex:1;min-width:0;}
+.fin-acc-bal-in{width:120px;flex-shrink:0;padding:7px 10px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);color:var(--text-primary);font-family:ui-monospace,monospace;font-size:13px;text-align:right;outline:none;}
+.fin-acc-del-btn{background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:16px;padding:4px;}
+.fin-acc-del-btn:hover{color:var(--danger);}
+
+/* Slide-up panels (manage subscriptions / accounts) */
+.fin-panel{position:absolute;top:0;left:0;right:0;min-height:100%;z-index:120;background:#050506;overflow-y:auto;transform:translateY(100%);visibility:hidden;transition:transform .36s cubic-bezier(.22,1,.36,1),visibility 0s linear .36s;padding-bottom:90px;}
+.fin-panel.open{transform:translateY(0);visibility:visible;transition:transform .36s cubic-bezier(.22,1,.36,1),visibility 0s linear 0s;}
+.fin-panel-hdr{position:sticky;top:0;z-index:5;background:rgba(5,5,6,.96);backdrop-filter:blur(16px);display:flex;align-items:center;gap:14px;padding:20px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);}
+.fin-panel-back{background:none;border:none;color:var(--text-secondary);font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;padding:0;line-height:1;}
+.fin-panel-title{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:9.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--text-tertiary);}
+.fin-panel-add{margin-left:auto;background:none;border:1px solid var(--hairline);border-radius:9px;color:var(--text-secondary);font-size:11px;font-weight:700;cursor:pointer;padding:6px 11px;font-family:inherit;transition:background .15s;}
+.fin-panel-add:hover{background:rgba(255,255,255,.06);}
+.fin-panel-body{padding:16px 20px;}
+.fin-panel-sublbl{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:9.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-tertiary);margin:18px 0 10px;}
+
+/* Modals (add transaction / add-edit subscription) */
+.fin-modal{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;}
+.fin-modal.hidden{display:none;}
+.fin-modal-bg{position:absolute;inset:0;background:rgba(5,5,6,.82);backdrop-filter:blur(12px);}
+.fin-modal-box{position:relative;z-index:1;background:rgba(14,14,16,.98);border:1px solid rgba(255,255,255,.10);border-radius:20px;padding:24px 20px;max-width:440px;width:94%;box-shadow:0 24px 60px rgba(0,0,0,.6);max-height:90vh;overflow-y:auto;}
+.fin-modal-title{font-size:17px;font-weight:700;letter-spacing:-.02em;margin-bottom:18px;}
+.fin-modal-lbl{font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.10em;font-weight:700;margin:0 0 5px;display:block;}
+.fin-modal-row{display:flex;gap:8px;}
+.fin-modal-row>div{flex:1;min-width:0;}
+.fin-mb{margin-bottom:12px;}
+.fin-modal-footer{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;align-items:center;}
+.fin-modal-save{padding:10px 22px;border-radius:11px;border:none;background:linear-gradient(180deg,#FFFFFF 0%,#E8E5DD 100%);color:#0A0A0B;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.9);transition:transform .15s;}
+.fin-modal-save:active{transform:scale(.97);}
+.fin-modal-cancel{padding:10px 18px;border-radius:11px;border:1px solid rgba(255,255,255,.10);background:none;color:var(--text-secondary);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;}
+.fin-modal-cancel:hover{background:rgba(255,255,255,.06);}
+.fin-modal-del{font-size:13px;color:var(--danger);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;text-decoration:underline;margin-right:auto;}
+.fin-status{font-size:11.5px;color:var(--text-tertiary);min-height:14px;margin-top:8px;}
+
+/* Polish */
+.fin-add-btn:focus-visible,.fin-sec-action:focus-visible,.fin-sub-row:focus-visible,.fin-panel-back:focus-visible,.fin-panel-add:focus-visible,.fin-seg-btn:focus-visible,.fin-modal-save:focus-visible,.fin-modal-cancel:focus-visible,.fin-budget-del:focus-visible,.fin-txn-del:focus-visible,.fin-nw-account:focus-visible{outline:2px solid var(--accent-work);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){.fin-flow-fill,.fin-budget-bar,.fin-chart-line,.fin-sub-row,.fin-panel,.fin-add-btn,.fin-modal-save{transition:none!important;}}
 
 /* ── Gym Coach ─────────────────────────────────────────────── */
 .gym-day-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:6px; }

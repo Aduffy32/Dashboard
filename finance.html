@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -33,118 +33,250 @@
 <!-- App -->
 <div id="appContainer"><div class="tab-page active" id="page-finance">
 <div class="container">
-  <div class="section">
 
-    <!-- Month summary chips -->
-    <div class="fin-summary-row">
-      <div class="fin-stat-chip">
-        <span class="fin-stat-label">Income</span>
-        <span class="fin-stat-value income" id="finIncome">$0.00</span>
+  <!-- Header -->
+  <div class="fin-header">
+    <div class="fin-header-l">
+      <span class="fin-eyebrow" id="finEyebrow">&nbsp;</span>
+      <h1 class="fin-title">Finance</h1>
+    </div>
+    <div class="fin-header-r">
+      <button class="fin-add-btn" id="finOpenAddBtn" aria-label="Add a transaction">+ Add</button>
+    </div>
+  </div>
+
+  <!-- Cash-flow hero (spending vs income) -->
+  <div class="fin-hero">
+    <div class="fin-hero-eyebrow">Net cash flow</div>
+    <div class="fin-hero-net" id="finHeroNet">€0</div>
+    <div class="fin-hero-sub" id="finHeroSub">income vs spending this month</div>
+    <div class="fin-flow">
+      <div class="fin-flow-row">
+        <span class="fin-flow-lbl">In</span>
+        <div class="fin-flow-track"><div class="fin-flow-fill income" id="finFlowIn" style="width:0%"></div></div>
+        <span class="fin-flow-val" id="finFlowInVal">€0</span>
       </div>
-      <div class="fin-stat-chip">
-        <span class="fin-stat-label">Expenses</span>
-        <span class="fin-stat-value expense" id="finExpenses">$0.00</span>
-      </div>
-      <div class="fin-stat-chip">
-        <span class="fin-stat-label">Net Balance</span>
-        <span class="fin-stat-value" id="finNet">$0.00</span>
+      <div class="fin-flow-row">
+        <span class="fin-flow-lbl">Out</span>
+        <div class="fin-flow-track"><div class="fin-flow-fill expense" id="finFlowOut" style="width:0%"></div></div>
+        <span class="fin-flow-val" id="finFlowOutVal">€0</span>
       </div>
     </div>
+  </div>
 
-    <div class="gm-card fin-networth-card" style="margin-bottom:16px;">
-      <div class="gm-eyebrow" style="margin-bottom:14px;">Net Worth</div>
-      <div class="fin-nw-total-row">
-        <span class="fin-nw-total" id="finNwTotal">€0</span>
-        <button class="fin-nw-edit-btn" id="finNwEditBtn">Edit accounts</button>
-      </div>
-      <div class="fin-nw-accounts" id="finNwAccounts"></div>
-    </div>
+  <!-- Subscriptions -->
+  <div class="fin-sec-hdr">
+    <span class="fin-sec-title">Subscriptions</span>
+    <button class="fin-sec-action" id="finSubsManageBtn">Manage ›</button>
+  </div>
+  <div class="fin-subs-summary">
+    <div class="fin-subs-sum"><span class="fin-subs-sum-val" id="finSubsMonthly">€0</span><span class="fin-subs-sum-lbl">Per month</span></div>
+    <div class="fin-subs-sum"><span class="fin-subs-sum-val" id="finSubsYearly">€0</span><span class="fin-subs-sum-lbl">Per year</span></div>
+    <div class="fin-subs-sum"><span class="fin-subs-sum-val" id="finSubsCount">0</span><span class="fin-subs-sum-lbl">Active</span></div>
+  </div>
+  <div class="fin-subs-list" id="finSubsList"></div>
 
-    <div class="nutr-panel" id="finAccountsPanel" style="position:fixed;inset:0;z-index:200;background:var(--bg, #050506);overflow-y:auto;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.32,0.72,0,1);">
-      <div class="nutr-panel-hdr" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.07);">
-        <button class="nutr-panel-back" id="finAccountsBack">←</button>
-        <span class="nutr-panel-title">ACCOUNTS</span>
-      </div>
-      <div style="padding:16px;" id="finAccountsList"></div>
-      <div style="padding:0 16px 16px;">
-        <div class="gm-eyebrow" style="margin-bottom:10px;">Add Account</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <input type="text" id="finAccName" class="fin-input" placeholder="Account name (e.g. Revolut, Pension)">
-          <div style="display:flex;gap:8px;">
-            <select id="finAccType" class="fin-input" style="flex:1;">
-              <option value="current">Current</option>
-              <option value="savings">Savings</option>
-              <option value="investment">Investment</option>
-            </select>
-            <input type="number" id="finAccBalance" class="fin-input" placeholder="Balance" style="flex:1;" step="0.01">
-            <button id="finAccAddBtn" class="goal-add-btn">+ Add</button>
-          </div>
-        </div>
-      </div>
-    </div>
+  <!-- Spending chart -->
+  <div class="fin-sec-hdr">
+    <span class="fin-sec-title">Spending</span>
+    <span class="fin-sec-action" style="cursor:default" id="finChartTotal">€0</span>
+  </div>
+  <div class="gm-card gm-card-no-hover fin-chart-card">
+    <svg id="finChartSvg" class="fin-chart-svg" viewBox="0 0 600 120" preserveAspectRatio="none" height="120"></svg>
+  </div>
 
-    <!-- Daily spending chart -->
-    <div class="gm-card fin-chart-wrap">
-      <div class="gm-eyebrow" id="finChartTitle">Daily Spending</div>
-      <svg id="finChartSvg" class="fin-chart-svg" viewBox="0 0 600 90" preserveAspectRatio="none" height="90" style="margin-top:12px;"></svg>
-    </div>
+  <!-- Budgets -->
+  <div class="fin-sec-hdr">
+    <span class="fin-sec-title" id="finBudgetTitle">Budgets</span>
+    <button class="fin-sec-action" id="finBudgetSetBtn">+ Set</button>
+  </div>
+  <div id="finBudgetList"></div>
 
-    <!-- Budgets -->
-    <div class="section-title" id="finBudgetTitle">Budgets</div>
-    <div id="finBudgetList"></div>
-    <div class="gm-card">
-      <div class="gm-eyebrow">Set Budget</div>
-      <div class="fin-form-row" style="margin-top:14px;">
-        <select id="finBudgetCategory" class="fin-input" style="flex:0 1 180px;">
-          <option value="Food">🍔 Food</option>
-          <option value="Transport">🚗 Transport</option>
-          <option value="Housing">🏠 Housing</option>
-          <option value="Health">💊 Health</option>
-          <option value="Entertainment">🎬 Entertainment</option>
-          <option value="Shopping">🛍️ Shopping</option>
-          <option value="Other">📦 Other</option>
-        </select>
-        <input type="number" id="finBudgetLimit" class="fin-input" placeholder="Monthly limit" min="0" step="0.01" style="max-width:160px;flex:0 1 160px;"/>
-        <button id="finBudgetAddBtn" class="goal-add-btn">+ Set</button>
-      </div>
-      <div id="finBudgetStatus" class="polish-status"></div>
-    </div>
+  <!-- Net worth -->
+  <div class="fin-sec-hdr">
+    <span class="fin-sec-title">Net worth</span>
+    <button class="fin-sec-action" id="finNwEditBtn">Edit ›</button>
+  </div>
+  <div class="gm-card gm-card-no-hover fin-nw-card">
+    <div class="fin-nw-total-row"><span class="fin-nw-total" id="finNwTotal">€0</span></div>
+    <div class="fin-nw-sub" id="finNwSub"></div>
+    <div class="fin-nw-accounts" id="finNwAccounts"></div>
+  </div>
 
-    <!-- Transactions -->
-    <div class="section-title" id="finSectionTitle">Transactions</div>
+  <!-- Transactions -->
+  <div class="fin-sec-hdr">
+    <span class="fin-sec-title" id="finSectionTitle">Transactions</span>
+    <button class="fin-sec-action" id="finOpenAddBtn2">+ Add</button>
+  </div>
+  <div id="finList"></div>
 
-    <div class="gm-card">
-      <div class="gm-eyebrow">Add Transaction</div>
-      <div style="margin-top:14px;">
-        <div class="fin-form-row">
-          <div class="fin-type-toggle">
-            <button class="fin-type-btn" id="finTypeBtnIncome"  data-type="income">Income</button>
-            <button class="fin-type-btn" id="finTypeBtnExpense" data-type="expense">Expense</button>
-          </div>
-          <input type="number" id="finAmount" class="fin-input" placeholder="Amount" min="0" step="0.01" style="max-width:140px;flex:0 1 140px;"/>
-          <input type="date"   id="finDate"   class="fin-input" style="max-width:160px;flex:0 1 160px;"/>
-        </div>
-        <div class="fin-form-row">
-          <select id="finCategory" class="fin-input" style="flex:0 1 180px;">
-            <option value="Food">🍔 Food</option>
-            <option value="Transport">🚗 Transport</option>
-            <option value="Housing">🏠 Housing</option>
-            <option value="Health">💊 Health</option>
-            <option value="Entertainment">🎬 Entertainment</option>
-            <option value="Shopping">🛍️ Shopping</option>
-            <option value="Other">📦 Other</option>
-          </select>
-          <input type="text" id="finNote" class="fin-input" placeholder="Note (optional)"/>
-          <button id="finAddBtn" class="goal-add-btn">+ Add</button>
-        </div>
-      </div>
-    </div>
+</div>
 
-    <div id="finList"></div>
+<!-- Manage subscriptions panel -->
+<div class="fin-panel" id="finSubsPanel">
+  <div class="fin-panel-hdr">
+    <button class="fin-panel-back" id="finSubsBack">←</button>
+    <span class="fin-panel-title">SUBSCRIPTIONS</span>
+    <button class="fin-panel-add" id="finSubAddBtn">+ Add</button>
+  </div>
+  <div class="fin-panel-body" id="finSubsPanelBody">
+    <div class="fin-subs-list" id="finSubsManageList"></div>
   </div>
 </div>
+
+<!-- Accounts / net-worth edit panel -->
+<div class="fin-panel" id="finAccountsPanel">
+  <div class="fin-panel-hdr">
+    <button class="fin-panel-back" id="finAccountsBack">←</button>
+    <span class="fin-panel-title">ACCOUNTS &amp; CURRENCY</span>
+  </div>
+  <div class="fin-panel-body">
+    <div class="fin-acc-edit-row" style="background:rgba(138,182,232,.06);border-color:rgba(138,182,232,.18);">
+      <div class="fin-acc-edit-info">
+        <div class="fin-nw-acc-name">Exchange rate</div>
+        <div class="fin-nw-acc-type">GBP per €1 · used for the home total</div>
+      </div>
+      <input class="fin-acc-bal-in" type="number" id="finFxInput" step="0.001" min="0.1" max="3">
+    </div>
+
+    <div class="fin-panel-sublbl">Accounts</div>
+    <div id="finAccountsList"></div>
+
+    <div class="fin-panel-sublbl">Add account</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <input type="text" id="finAccName" class="fin-input" placeholder="Account name (e.g. Revolut, Pension)">
+      <div style="display:flex;gap:8px;">
+        <select id="finAccType" class="fin-input" style="flex:1;">
+          <option value="current">Current</option>
+          <option value="savings">Savings</option>
+          <option value="investment">Investment</option>
+        </select>
+        <div class="fin-seg" id="finAccCur" style="flex:0 0 96px;">
+          <button class="fin-seg-btn active" data-cur="EUR">€</button>
+          <button class="fin-seg-btn" data-cur="GBP">£</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <input type="number" id="finAccBalance" class="fin-input" placeholder="Balance" step="0.01">
+        <button id="finAccAddBtn" class="fin-add-btn" style="padding:11px 18px;">+ Add</button>
+      </div>
+    </div>
+  </div>
 </div>
 
+<!-- Add / edit transaction modal -->
+<div class="fin-modal hidden" id="finTxnModal">
+  <div class="fin-modal-bg" id="finTxnModalBg"></div>
+  <div class="fin-modal-box">
+    <div class="fin-modal-title">Add transaction</div>
+    <div class="fin-seg fin-mb" id="finTxnType">
+      <button class="fin-seg-btn active" data-type="expense">Expense</button>
+      <button class="fin-seg-btn" data-type="income">Income</button>
+    </div>
+    <div class="fin-modal-row fin-mb">
+      <div style="flex:1.4;">
+        <label class="fin-modal-lbl">Amount</label>
+        <input type="number" id="finAmount" class="fin-input" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div style="flex:0 0 96px;">
+        <label class="fin-modal-lbl">Currency</label>
+        <div class="fin-seg" id="finTxnCur">
+          <button class="fin-seg-btn active" data-cur="EUR">€</button>
+          <button class="fin-seg-btn" data-cur="GBP">£</button>
+        </div>
+      </div>
+    </div>
+    <div class="fin-modal-row fin-mb">
+      <div>
+        <label class="fin-modal-lbl">Category</label>
+        <select id="finCategory" class="fin-input"></select>
+      </div>
+      <div>
+        <label class="fin-modal-lbl">Date</label>
+        <input type="date" id="finDate" class="fin-input">
+      </div>
+    </div>
+    <label class="fin-modal-lbl">Note (optional)</label>
+    <input type="text" id="finNote" class="fin-input fin-mb" placeholder="e.g. Tesco, fuel, rent">
+    <div class="fin-status" id="finTxnStatus"></div>
+    <div class="fin-modal-footer">
+      <button class="fin-modal-cancel" id="finTxnCancel">Cancel</button>
+      <button class="fin-modal-save" id="finTxnSave">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add / edit subscription modal -->
+<div class="fin-modal hidden" id="finSubModal">
+  <div class="fin-modal-bg" id="finSubModalBg"></div>
+  <div class="fin-modal-box">
+    <div class="fin-modal-title" id="finSubModalTitle">Add subscription</div>
+    <label class="fin-modal-lbl">Name</label>
+    <input type="text" id="finSubName" class="fin-input fin-mb" placeholder="e.g. Netflix, Spotify, Gym">
+    <div class="fin-modal-row fin-mb">
+      <div style="flex:1.4;">
+        <label class="fin-modal-lbl">Amount</label>
+        <input type="number" id="finSubAmount" class="fin-input" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div style="flex:0 0 96px;">
+        <label class="fin-modal-lbl">Currency</label>
+        <div class="fin-seg" id="finSubCur">
+          <button class="fin-seg-btn active" data-cur="EUR">€</button>
+          <button class="fin-seg-btn" data-cur="GBP">£</button>
+        </div>
+      </div>
+    </div>
+    <div class="fin-modal-row fin-mb">
+      <div>
+        <label class="fin-modal-lbl">Billing cycle</label>
+        <select id="finSubCycle" class="fin-input">
+          <option value="weekly">Weekly</option>
+          <option value="monthly" selected>Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </div>
+      <div>
+        <label class="fin-modal-lbl">Category</label>
+        <select id="finSubCategory" class="fin-input"></select>
+      </div>
+    </div>
+    <label class="fin-modal-lbl">Next renewal date</label>
+    <input type="date" id="finSubNext" class="fin-input fin-mb">
+    <div class="fin-seg fin-mb" id="finSubTrial">
+      <button class="fin-seg-btn active" data-trial="0">Active</button>
+      <button class="fin-seg-btn" data-trial="1">Free trial</button>
+    </div>
+    <div id="finSubTrialWrap" style="display:none;">
+      <label class="fin-modal-lbl">Trial ends</label>
+      <input type="date" id="finSubTrialEnds" class="fin-input fin-mb">
+    </div>
+    <div class="fin-status" id="finSubStatus"></div>
+    <div class="fin-modal-footer">
+      <button class="fin-modal-del" id="finSubDelete" style="display:none;">Delete</button>
+      <button class="fin-modal-cancel" id="finSubCancel">Cancel</button>
+      <button class="fin-modal-save" id="finSubSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Set budget modal -->
+<div class="fin-modal hidden" id="finBudgetModal">
+  <div class="fin-modal-bg" id="finBudgetModalBg"></div>
+  <div class="fin-modal-box">
+    <div class="fin-modal-title">Set monthly budget</div>
+    <label class="fin-modal-lbl">Category</label>
+    <select id="finBudgetCategory" class="fin-input fin-mb"></select>
+    <label class="fin-modal-lbl">Monthly limit (€ home)</label>
+    <input type="number" id="finBudgetLimit" class="fin-input fin-mb" placeholder="0.00" min="0" step="0.01">
+    <div class="fin-status" id="finBudgetStatus"></div>
+    <div class="fin-modal-footer">
+      <button class="fin-modal-cancel" id="finBudgetCancel">Cancel</button>
+      <button class="fin-modal-save" id="finBudgetSave">Save</button>
+    </div>
+  </div>
+</div>
+
+</div>
 <nav class="bottom-nav" aria-label="Main navigation">
   <button class="nav-tab" data-tab="home" aria-label="Home">
     <div class="nav-tab-indicator"></div>
@@ -198,66 +330,5 @@
 </nav>
 </div>
 <script src="shared.js"></script>
-<script>
-function finAccLoad() { try { return JSON.parse(localStorage.getItem('po_finance_accounts') || '[]'); } catch { return []; } }
-function finAccSave(arr) { localStorage.setItem('po_finance_accounts', JSON.stringify(arr)); }
-
-function finNwRender() {
-  const accounts = finAccLoad();
-  const total = accounts.reduce((s, a) => s + (parseFloat(a.balance) || 0), 0);
-  const fmt = v => (v < 0 ? '-' : '') + '€' + Math.abs(v).toLocaleString('en-IE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  const el = document.getElementById('finNwTotal');
-  if (el) { el.textContent = fmt(total); el.style.color = total < 0 ? '#FF6B6B' : 'var(--text-primary)'; }
-  const list = document.getElementById('finNwAccounts');
-  if (!list) return;
-  if (!accounts.length) { list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);font-style:italic;padding:4px 0;">No accounts yet — tap Edit accounts to add.</div>'; return; }
-  list.innerHTML = accounts.map(a => `<div class="fin-nw-account"><div><div class="fin-nw-acc-name">${a.name}</div><div class="fin-nw-acc-type">${a.type}</div></div><div class="fin-nw-acc-balance">${fmt(parseFloat(a.balance)||0)}</div></div>`).join('');
-}
-
-function finAccPanelRender() {
-  const list = document.getElementById('finAccountsList');
-  if (!list) return;
-  const accounts = finAccLoad();
-  if (!accounts.length) { list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);padding:8px 0;">No accounts yet.</div>'; return; }
-  list.innerHTML = accounts.map(a => `<div class="fin-acc-edit-row"><div class="fin-acc-edit-info"><div class="fin-nw-acc-name">${a.name}</div><div class="fin-nw-acc-type">${a.type}</div></div><input class="fin-acc-bal-in" type="number" data-id="${a.id}" value="${a.balance}" step="0.01"><button class="fin-acc-del-btn" data-del="${a.id}">✕</button></div>`).join('');
-  list.querySelectorAll('.fin-acc-bal-in').forEach(inp => {
-    inp.addEventListener('change', () => {
-      const all = finAccLoad(); const idx = all.findIndex(x => x.id === inp.dataset.id);
-      if (idx >= 0) { all[idx].balance = parseFloat(inp.value) || 0; finAccSave(all); finNwRender(); }
-    });
-  });
-  list.querySelectorAll('.fin-acc-del-btn').forEach(btn => {
-    btn.addEventListener('click', () => { finAccSave(finAccLoad().filter(x => x.id !== btn.dataset.del)); finAccPanelRender(); finNwRender(); });
-  });
-}
-
-function finAccInit() {
-  document.getElementById('finNwEditBtn')?.addEventListener('click', () => {
-    finAccPanelRender();
-    const p = document.getElementById('finAccountsPanel');
-    if (p) p.style.transform = 'translateX(0)';
-  });
-  document.getElementById('finAccountsBack')?.addEventListener('click', () => {
-    const p = document.getElementById('finAccountsPanel');
-    if (p) p.style.transform = 'translateX(100%)';
-  });
-  document.getElementById('finAccAddBtn')?.addEventListener('click', () => {
-    const name = document.getElementById('finAccName').value.trim();
-    const type = document.getElementById('finAccType').value;
-    const bal  = parseFloat(document.getElementById('finAccBalance').value) || 0;
-    if (!name) return;
-    const all = finAccLoad();
-    all.push({ id: 'acc_' + Date.now(), name, type, balance: bal });
-    finAccSave(all);
-    document.getElementById('finAccName').value = '';
-    document.getElementById('finAccBalance').value = '';
-    finAccPanelRender();
-    finNwRender();
-  });
-  finNwRender();
-}
-
-finAccInit();
-</script>
 </body>
 </html>
