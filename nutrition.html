@@ -62,65 +62,100 @@
 <div id="appContainer"><div class="tab-page active" id="page-nutrition">
 <div class="container">
 
-  <!-- Nutrition Header -->
+  <!-- Header -->
   <div class="nutr-header">
-    <div>
-      <div class="nutr-date-lbl" id="nutrDateLabel"></div>
-      <div class="nutr-page-title">Nutrition</div>
+    <div class="nutr-header-l">
+      <span class="nutr-eyebrow" id="nutrEyebrow"></span>
+      <h1 class="nutr-title">Nutrition</h1>
     </div>
-    <button class="nutr-tpl-btn" id="nutrTplBtn">⭐ templates</button>
-    <button class="nutr-log-btn" id="nutrLogBtn">+ log</button>
+    <div class="nutr-header-r">
+      <span class="nutr-streak dim" id="nutrStreakChip" title="Days in a row hitting your protein goal">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c.4 3.2-1.6 4.6-3 6-1.6 1.6-3 3.4-3 6a6 6 0 0 0 12 0c0-1.7-.7-3-1.5-4 .1 1-.5 2-1.5 2.3.6-2-.4-4.2-2-5.6C9.9 5.7 11.8 4 12 2z"/></svg>
+        <span id="nutrStreakNum">0</span>
+      </span>
+      <button class="nutr-log-btn" id="nutrLogBtn" aria-label="Log a meal">+ Log</button>
+    </div>
   </div>
 
-  <!-- Macro Hero Card -->
-  <div class="nutr-hero-card">
-    <div class="nutr-hero-top">
-      <span class="nutr-today-lbl">TODAY</span>
-      <div>
-        <span class="nutr-cal-num" id="nutrCalNum">0</span>
-        <span class="nutr-cal-target" id="nutrCalTarget">/ 2,400 kcal</span>
+  <!-- Calorie ring hero -->
+  <div class="nutr-hero">
+    <div class="nutr-ring-wrap">
+      <svg class="nutr-ring-svg" viewBox="0 0 188 188" aria-hidden="true">
+        <defs>
+          <linearGradient id="nutrRingGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#57E0A1"/>
+            <stop offset="1" stop-color="#76E8C4"/>
+          </linearGradient>
+        </defs>
+        <circle class="nutr-ring-track" cx="94" cy="94" r="84" stroke-width="14"/>
+        <circle class="nutr-ring-arc" id="nutrRingArc" cx="94" cy="94" r="84" stroke-width="14" stroke-dasharray="527.79" stroke-dashoffset="527.79"/>
+      </svg>
+      <div class="nutr-ring-center">
+        <div class="nutr-ring-num" id="nutrCalLeft">0</div>
+        <div class="nutr-ring-lbl" id="nutrCalLeftLbl">kcal left</div>
       </div>
-      <span class="nutr-cal-left" id="nutrCalLeft">−0 LEFT</span>
     </div>
-    <div class="nutr-rings-row" id="nutrRingsRow"></div>
+    <div class="nutr-hero-meta">
+      <div class="nutr-hero-mi"><span class="nutr-hero-mi-val" id="nutrCalEaten">0</span><span class="nutr-hero-mi-lbl">Eaten</span></div>
+      <div class="nutr-hero-mi"><span class="nutr-hero-mi-val" id="nutrCalGoal">2,400</span><span class="nutr-hero-mi-lbl">Goal</span></div>
+    </div>
   </div>
 
-  <!-- Micro Coverage Banner -->
-  <div class="nutr-coverage-card" id="nutrCoverageCard" style="cursor:pointer">
-    <div>
-      <div class="nutr-cov-title">MICRO COVERAGE · <span id="nutrCovOnTrack">0</span>/<span id="nutrCovTotal">14</span> ON TRACK</div>
-      <div class="nutr-cov-sub">
-        <span class="nutr-cov-pct" id="nutrCovPct">0%</span>
-        <span class="nutr-cov-sep">·</span>
-        <span class="nutr-cov-low" id="nutrCovLow">0 low</span>
+  <!-- Macros -->
+  <div class="nutr-macros">
+    <div class="nutr-macro" style="--mc:#F2818A">
+      <div class="nutr-macro-ring">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><circle class="nutr-macro-trk" cx="24" cy="24" r="20" stroke-width="5"/><circle class="nutr-macro-arc" id="nutrProArc" cx="24" cy="24" r="20" stroke-width="5" stroke-dasharray="125.66" stroke-dashoffset="125.66"/></svg>
+        <span class="nutr-macro-pct" id="nutrProPct">0%</span>
       </div>
+      <div class="nutr-macro-meta"><span class="nutr-macro-val" id="nutrProVal">0</span><span class="nutr-macro-tgt" id="nutrProTgt">/180g</span></div>
+      <div class="nutr-macro-lbl">Protein</div>
     </div>
-    <span style="color:var(--text-tertiary);font-size:14px">›</span>
-  </div>
-
-  <!-- Micronutrient Grid -->
-  <div class="nutr-section-hdr">
-    <span class="nutr-section-title">↓ MICRONUTRIENTS · TODAY</span>
-    <span class="nutr-section-action" id="nutrSeeAllBtn" style="cursor:pointer">SEE ALL ›</span>
-  </div>
-  <div class="nutr-micro-grid" id="nutrMicroGrid"></div>
-
-  <!-- Chronic Gaps Strip -->
-  <div class="nutr-section-hdr">
-    <span class="nutr-section-title" id="nutrGapsPeriodLbl">↓ CHRONIC GAPS · 14D</span>
-    <div style="display:flex;gap:10px;align-items:center">
-      <span class="nutr-section-action" id="nutrGapsEditBtn" style="cursor:pointer">EDIT ›</span>
-      <span class="nutr-section-action" id="nutrGapsToggleBtn" style="cursor:pointer">30D ›</span>
+    <div class="nutr-macro" style="--mc:#9AA8E8">
+      <div class="nutr-macro-ring">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><circle class="nutr-macro-trk" cx="24" cy="24" r="20" stroke-width="5"/><circle class="nutr-macro-arc" id="nutrCarbArc" cx="24" cy="24" r="20" stroke-width="5" stroke-dasharray="125.66" stroke-dashoffset="125.66"/></svg>
+        <span class="nutr-macro-pct" id="nutrCarbPct">0%</span>
+      </div>
+      <div class="nutr-macro-meta"><span class="nutr-macro-val" id="nutrCarbVal">0</span><span class="nutr-macro-tgt" id="nutrCarbTgt">/260g</span></div>
+      <div class="nutr-macro-lbl">Carbs</div>
+    </div>
+    <div class="nutr-macro" style="--mc:#57E0A1">
+      <div class="nutr-macro-ring">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><circle class="nutr-macro-trk" cx="24" cy="24" r="20" stroke-width="5"/><circle class="nutr-macro-arc" id="nutrFatArc" cx="24" cy="24" r="20" stroke-width="5" stroke-dasharray="125.66" stroke-dashoffset="125.66"/></svg>
+        <span class="nutr-macro-pct" id="nutrFatPct">0%</span>
+      </div>
+      <div class="nutr-macro-meta"><span class="nutr-macro-val" id="nutrFatVal">0</span><span class="nutr-macro-tgt" id="nutrFatTgt">/75g</span></div>
+      <div class="nutr-macro-lbl">Fat</div>
     </div>
   </div>
-  <div class="nutr-gaps-card" id="nutrGapsCard"></div>
 
-  <!-- Meal Log -->
+  <!-- Quick add -->
   <div class="nutr-section-hdr">
-    <span class="nutr-section-title">↓ MEALS · <span id="nutrLoggedCount">0</span> LOGGED</span>
-    <span class="nutr-section-action"><span id="nutrPlannedCount">0</span> PLANNED</span>
+    <span class="nutr-section-title">Quick add</span>
+    <button class="nutr-section-action" id="nutrTplBtn" type="button">Templates ›</button>
   </div>
-  <div class="nutr-meal-list" id="nutrMealList"></div>
+  <div class="nutr-qa-row" id="nutrQaRow"></div>
+
+  <!-- Weight trend -->
+  <div class="nutr-weight-card" id="nutrWeightCard" role="button" tabindex="0" aria-label="View weight in Health"></div>
+
+  <!-- Micronutrients summary -->
+  <div class="nutr-section-hdr">
+    <span class="nutr-section-title">Micronutrients</span>
+    <button class="nutr-section-action" id="nutrMicroCardLink" type="button">Details ›</button>
+  </div>
+  <div class="nutr-micro-card" id="nutrMicroCard" role="button" tabindex="0" aria-label="Open micronutrient details">
+    <div class="nutr-mc-top"><span class="nutr-mc-title">Coverage today</span><span class="nutr-mc-pct" id="nutrMcPct">0%</span></div>
+    <div class="nutr-mc-bar" id="nutrMcBar"></div>
+    <div class="nutr-mc-sub"><span id="nutrMcSub">0/0 on track</span><span class="nutr-mc-arrow">›</span></div>
+  </div>
+
+  <!-- Meals -->
+  <div class="nutr-section-hdr">
+    <span class="nutr-section-title">Meals</span>
+    <span class="nutr-section-action" style="cursor:default"><span id="nutrLoggedCount">0</span> logged · <span id="nutrPlannedCount">0</span> planned</span>
+  </div>
+  <div class="nutr-mealgroups" id="nutrMealGroups"></div>
 
 </div>
 
@@ -146,7 +181,8 @@
 <div class="nutr-panel" id="nutrAllMicrosPanel">
   <div class="nutr-panel-hdr">
     <button class="nutr-panel-back" id="nutrAllMicrosBack">←</button>
-    <span class="nutr-panel-title">ALL MICRONUTRIENTS · TODAY</span>
+    <span class="nutr-panel-title">MICRONUTRIENTS</span>
+    <button class="nutr-panel-gear" id="nutrMicroSettingsOpen" type="button">Edit tracked</button>
   </div>
   <div class="nutr-panel-body" id="nutrAllMicrosList"></div>
 </div>
@@ -166,6 +202,13 @@
   <div class="nutr-modal-bg"></div>
   <div class="nutr-modal-box">
     <div class="nutr-modal-title" id="nutrMModalTitle">Log Meal</div>
+    <label class="nutr-modal-lbl">Meal</label>
+    <div class="nutr-cat-tog" id="nutrMCatTog">
+      <button type="button" class="nutr-cat-btn" data-cat="Breakfast">Breakfast</button>
+      <button type="button" class="nutr-cat-btn" data-cat="Lunch">Lunch</button>
+      <button type="button" class="nutr-cat-btn" data-cat="Dinner">Dinner</button>
+      <button type="button" class="nutr-cat-btn" data-cat="Snack">Snack</button>
+    </div>
     <div class="nutr-fs-wrap">
       <label class="nutr-modal-lbl">Search food (optional)</label>
       <div class="nutr-fs-inputrow">
@@ -179,8 +222,8 @@
         <button type="button" class="nutr-fs-clear" id="nutrFsClear">Clear</button>
       </div>
     </div>
-    <label class="nutr-modal-lbl">Meal Name</label>
-    <input class="nutr-modal-in" id="nutrMName" type="text" placeholder="e.g. Breakfast, Lunch, Snack, Dinner" autocomplete="off">
+    <label class="nutr-modal-lbl">Food</label>
+    <input class="nutr-modal-in" id="nutrMName" type="text" placeholder="e.g. Greek yogurt bowl" autocomplete="off">
     <label class="nutr-modal-lbl">Time</label>
     <input class="nutr-modal-in" id="nutrMTime" type="time">
     <label class="nutr-modal-lbl">Food Description</label>

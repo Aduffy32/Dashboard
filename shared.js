@@ -5548,191 +5548,366 @@ function nutritionMicroCoverage(data) {
   return { tiles, onTrack, total, lowCount, pct };
 }
 
+// ── Nutrition redesign helpers ──────────────────────────────
+function nutrEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+}
+
+const NUTR_MEAL_CATS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+
+// Resolve a meal into one of the four meal-type buckets.
+function nutrMealCategory(meal) {
+  if (meal && meal.category && NUTR_MEAL_CATS.includes(meal.category)) return meal.category;
+  const n = ((meal && meal.name) || '').toLowerCase();
+  if (/break|brekkie|oat|cereal|porridge/.test(n)) return 'Breakfast';
+  if (/lunch/.test(n)) return 'Lunch';
+  if (/dinner|supper/.test(n)) return 'Dinner';
+  if (/snack/.test(n)) return 'Snack';
+  const h = parseInt(((meal && meal.time) || '12:00').split(':')[0], 10);
+  if (isNaN(h) || h < 11) return isNaN(h) ? 'Snack' : 'Breakfast';
+  if (h < 15) return 'Lunch';
+  if (h < 18) return 'Snack';
+  return 'Dinner';
+}
+
+function nutrDefaultCatByTime() {
+  const h = new Date().getHours();
+  if (h < 11) return 'Breakfast';
+  if (h < 15) return 'Lunch';
+  if (h < 18) return 'Snack';
+  return 'Dinner';
+}
+
+// A day "counts" toward the streak if protein hit ≥90% of target.
+function nutrDayHit(data, dateStr) {
+  const meals = (data.meals[dateStr] || []).filter(m => !m.planned);
+  if (!meals.length) return false;
+  const tp = (data.targets && data.targets.protein) || 0;
+  if (tp <= 0) return false;
+  const pro = meals.reduce((s, m) => s + (m.protein || 0), 0);
+  return pro >= tp * 0.9;
+}
+
+function nutrComputeStreak(data) {
+  const [ty, tm, td] = getActiveDateString().split('-').map(Number);
+  const base = new Date(ty, tm - 1, td);
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // Don't break the streak just because today isn't finished yet.
+  let streak = 0;
+  const start = nutrDayHit(data, fmt(base)) ? 0 : 1;
+  for (let i = start; i < 400; i++) {
+    const d = new Date(base); d.setDate(d.getDate() - i);
+    if (nutrDayHit(data, fmt(d))) streak++; else break;
+  }
+  return streak;
+}
+
+// Update one macro mini-ring + its value/target labels.
+function nutrSetMacroArc(arcId, pctId, valId, tgtId, value, target, unit) {
+  const v = Math.round(value || 0), t = Math.round(target || 0);
+  const ratio = t > 0 ? value / t : 0;
+  const arc = document.getElementById(arcId);
+  if (arc) { const C = 125.66; arc.style.strokeDashoffset = (C * (1 - Math.min(1, ratio))).toFixed(2); }
+  const p = document.getElementById(pctId); if (p) p.textContent = Math.round(ratio * 100) + '%';
+  const valEl = document.getElementById(valId); if (valEl) valEl.textContent = v;
+  const tgtEl = document.getElementById(tgtId); if (tgtEl) tgtEl.textContent = '/' + t + unit;
+}
+
+// Build the quick-add list from saved templates + recently logged foods.
+function nutrQuickAddItems(data) {
+  const items = [], seen = new Set();
+  let tpls = [];
+  try { tpls = JSON.parse(localStorage.getItem('nutr_templates') || '[]'); } catch {}
+  tpls.slice().sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0)).forEach(t => {
+    const key = (t.name || '').trim().toLowerCase();
+    if (!t.name || seen.has(key)) return; seen.add(key);
+    items.push({ name: t.name, cal: t.cal || 0, pro: t.pro || 0, carb: t.carb || 0, fat: t.fat || 0, desc: t.desc || '' });
+  });
+  const dates = Object.keys(data.meals || {}).sort().reverse();
+  for (const d of dates) {
+    const ms = (data.meals[d] || []).slice().reverse();
+    for (const m of ms) {
+      const key = (m.name || '').trim().toLowerCase();
+      if (!m.name || seen.has(key)) continue; seen.add(key);
+      items.push({ name: m.name, cal: m.calories || 0, pro: m.protein || 0, carb: m.carbs || 0, fat: m.fat || 0, desc: m.description || '', micros: m.micros });
+      if (items.length >= 12) break;
+    }
+    if (items.length >= 12) break;
+  }
+  return items.slice(0, 12);
+}
+
+function nutrQuickLog(item) {
+  const data = loadNutritionData(), today = nutritionTodayKey();
+  if (!data.meals[today]) data.meals[today] = [];
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  data.meals[today].push({
+    id: crypto.randomUUID(), name: item.name, description: item.desc || '', time,
+    calories: item.cal || 0, protein: item.pro || 0, carbs: item.carb || 0, fat: item.fat || 0,
+    planned: false, category: nutrDefaultCatByTime(), micros: item.micros || {}
+  });
+  data.meals[today].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  saveNutritionData(data);
+  renderNutrition();
+}
+
+function nutrRenderQuickAdd(data) {
+  const row = document.getElementById('nutrQaRow');
+  if (!row) return;
+  const items = nutrQuickAddItems(data);
+  row.innerHTML = '';
+  if (!items.length) {
+    row.innerHTML = '<div class="nutr-qa-empty">No recent foods yet — log a meal or save a template to quick-add it next time.</div>';
+    return;
+  }
+  items.forEach(it => {
+    const chip = document.createElement('button');
+    chip.className = 'nutr-qa-chip'; chip.type = 'button';
+    chip.title = 'Tap to log ' + it.name;
+    chip.innerHTML = `<span class="nutr-qa-name">${nutrEsc(it.name)}</span><span class="nutr-qa-cal"><b>+ ${Math.round(it.cal)}</b> kcal</span>`;
+    chip.addEventListener('click', () => nutrQuickLog(it));
+    row.appendChild(chip);
+  });
+}
+
+function nutrWeightSpark(recent) {
+  if (recent.length < 2) return '<div class="nutr-wt-spark"></div>';
+  const W = 160, H = 42, p = 5;
+  const vals = recent.map(e => e.weight);
+  const lo = Math.min(...vals), hi = Math.max(...vals), range = Math.max(hi - lo, 0.3);
+  const pts = recent.map((e, i) => {
+    const x = p + (i / (recent.length - 1)) * (W - 2 * p);
+    const y = p + (1 - (e.weight - lo) / range) * (H - 2 * p);
+    return [x, y];
+  });
+  const line = pts.map((pt, i) => (i ? 'L' : 'M') + pt[0].toFixed(1) + ' ' + pt[1].toFixed(1)).join(' ');
+  const area = line + ` L ${pts[pts.length - 1][0].toFixed(1)} ${H - p} L ${pts[0][0].toFixed(1)} ${H - p} Z`;
+  const last = pts[pts.length - 1];
+  return `<svg class="nutr-wt-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="nutrWtG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(87,224,161,0.28)"/><stop offset="1" stop-color="rgba(87,224,161,0)"/></linearGradient></defs>
+    <path d="${area}" fill="url(#nutrWtG)"/>
+    <path d="${line}" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.6" fill="var(--success)"/>
+  </svg>`;
+}
+
+function nutrRenderWeightCard() {
+  const card = document.getElementById('nutrWeightCard');
+  if (!card) return;
+  let entries = [];
+  try { entries = (typeof wtLoad === 'function' ? (wtLoad() || []) : []).slice().sort((a, b) => a.dateKey < b.dateKey ? -1 : 1); } catch {}
+  if (entries.length < 1) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const units = (typeof loadGymState === 'function' ? (loadGymState().units || 'kg') : 'kg');
+  const latest = entries[entries.length - 1];
+  let deltaHtml = '';
+  if (entries.length >= 2) {
+    const cutoff = new Date(latest.dateKey); cutoff.setDate(cutoff.getDate() - 7);
+    const inWin = entries.filter(e => new Date(e.dateKey) >= cutoff);
+    const ref = inWin.length >= 2 ? inWin[0] : entries[entries.length - 2];
+    const diff = latest.weight - ref.weight;
+    if (Math.abs(diff) > 0.05) {
+      const dn = diff < 0;
+      deltaHtml = `<span class="nutr-wt-delta ${dn ? 'down' : 'up'}">${dn ? '↓' : '↑'}${Math.abs(diff).toFixed(1)}</span>`;
+    } else {
+      deltaHtml = '<span class="nutr-wt-delta flat">±0</span>';
+    }
+  }
+  card.innerHTML = `
+    <div class="nutr-wt-l">
+      <span class="nutr-wt-lbl">Weight</span>
+      <span><span class="nutr-wt-val">${latest.weight.toFixed(1)}</span><span class="nutr-wt-unit">${units}</span></span>
+    </div>
+    ${nutrWeightSpark(entries.slice(-30))}
+    ${deltaHtml}`;
+}
+
+function nutrRenderMicroCard(data) {
+  const cov = nutritionMicroCoverage(data);
+  const pctEl = document.getElementById('nutrMcPct'); if (pctEl) pctEl.textContent = cov.pct + '%';
+  const subEl = document.getElementById('nutrMcSub');
+  if (subEl) subEl.innerHTML = `${cov.onTrack}/${cov.total} on track${cov.lowCount ? ` · <span class="nutr-mc-low">${cov.lowCount} low</span>` : ''}`;
+  const barEl = document.getElementById('nutrMcBar');
+  if (barEl) {
+    barEl.innerHTML = '';
+    if (!cov.tiles.length) { barEl.innerHTML = '<div class="nutr-mc-seg"></div>'; return; }
+    cov.tiles.forEach(t => {
+      const seg = document.createElement('div'); seg.className = 'nutr-mc-seg';
+      const c = t.pct >= 80 ? 'var(--success)' : t.pct >= 60 ? '#F2C063' : t.pct >= 40 ? '#F2A063' : 'var(--danger)';
+      seg.style.background = t.amount > 0 ? c : 'rgba(255,255,255,.08)';
+      seg.title = `${t.name}: ${t.pct}%`;
+      barEl.appendChild(seg);
+    });
+  }
+}
+
+// Render the chronic-gaps heatmap into a container (used by the micro hub).
+function nutrRenderGapsInto(gapsEl, data) {
+  if (!gapsEl) return;
+  gapsEl.innerHTML = '';
+  const gapsMicros = data.gapsMicros || [];
+  if (!gapsMicros.length) {
+    gapsEl.innerHTML = '<div class="nutr-empty" style="padding:6px 0">No nutrients selected — tap Edit to choose.</div>';
+    return;
+  }
+  const legend = document.createElement('div');
+  legend.className = 'nutr-gaps-legend';
+  legend.innerHTML = `
+    <div class="nutr-gaps-leg-item"><div class="nutr-gaps-leg-dot" style="background:#FF6B6B"></div>&lt;40%</div>
+    <div class="nutr-gaps-leg-item"><div class="nutr-gaps-leg-dot" style="background:#F2A063"></div>40–79%</div>
+    <div class="nutr-gaps-leg-item"><div class="nutr-gaps-leg-dot" style="background:#6BE3A4"></div>≥80%</div>
+    <div class="nutr-gaps-leg-item"><div class="nutr-gaps-leg-dot" style="background:rgba(255,255,255,0.15)"></div>no data</div>`;
+  gapsEl.appendChild(legend);
+  gapsMicros.forEach(key => {
+    const micro = NUTR_ALL_MICROS.find(m => m.key === key);
+    if (!micro) return;
+    const days = nutrGapsBuildHistory(data, key, nutrGapsWindow);
+    const dataDays = days.filter(d => d.pct !== null);
+    const avg = dataDays.length > 0 ? Math.round(dataDays.reduce((a, d) => a + d.pct, 0) / dataDays.length) : null;
+    const isLow = avg !== null && avg < 80;
+    const row = document.createElement('div'); row.className = 'nutr-spark-row';
+    const blocks = days.map(d => `<div class="nutr-spark-block" style="${nutrSparkBlockStyle(d.pct)}" title="${d.dateStr}: ${d.pct !== null ? d.pct + '%' : 'no data'}"></div>`).join('');
+    const avgText = avg !== null ? avg + '%' : '—';
+    row.innerHTML = `
+      <span class="nutr-spark-name ${isLow ? 'low' : avg === null ? 'none' : 'ok'}">${micro.name}</span>
+      <div class="nutr-spark-blocks${nutrGapsWindow === 30 ? ' w30' : ''}">${blocks}</div>
+      <span class="nutr-spark-avg ${isLow ? 'low' : avg === null ? 'none' : 'ok'}">${avgText}</span>`;
+    gapsEl.appendChild(row);
+  });
+}
+
+// Meal diary grouped into Breakfast / Lunch / Dinner / Snack.
+function nutrRenderMealGroups(data, todayMeals) {
+  const wrap = document.getElementById('nutrMealGroups');
+  if (!wrap) return;
+  const lcEl = document.getElementById('nutrLoggedCount');
+  const pcEl = document.getElementById('nutrPlannedCount');
+  if (lcEl) lcEl.textContent = todayMeals.filter(m => !m.planned).length;
+  if (pcEl) pcEl.textContent = todayMeals.filter(m => m.planned).length;
+
+  const GROUPS = [
+    { cat: 'Breakfast', color: '#9AA8E8' },
+    { cat: 'Lunch',     color: '#F2818A' },
+    { cat: 'Dinner',    color: '#C47FE8' },
+    { cat: 'Snack',     color: '#57E0A1' },
+  ];
+  const byCat = { Breakfast: [], Lunch: [], Dinner: [], Snack: [] };
+  todayMeals.forEach(m => { (byCat[nutrMealCategory(m)] || byCat.Snack).push(m); });
+
+  wrap.innerHTML = '';
+  GROUPS.forEach(g => {
+    const meals = byCat[g.cat].slice().sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    const subtotal = meals.filter(m => !m.planned).reduce((s, m) => s + (m.calories || 0), 0);
+    const group = document.createElement('div');
+    group.className = 'nutr-mg' + (meals.length ? '' : ' empty');
+
+    const hdr = document.createElement('div');
+    hdr.className = 'nutr-mg-hdr';
+    hdr.innerHTML = `<span class="nutr-mg-dot" style="background:${g.color}"></span><span class="nutr-mg-name">${g.cat}</span><span class="nutr-mg-cal">${subtotal ? Math.round(subtotal).toLocaleString() + ' kcal' : '—'}</span>`;
+    const addBtn = document.createElement('button');
+    addBtn.className = 'nutr-mg-add'; addBtn.type = 'button';
+    addBtn.setAttribute('aria-label', 'Add to ' + g.cat); addBtn.textContent = '+';
+    addBtn.addEventListener('click', e => { e.stopPropagation(); openAddMealModal(g.cat); });
+    hdr.appendChild(addBtn);
+    group.appendChild(hdr);
+
+    if (meals.length) {
+      const list = document.createElement('div'); list.className = 'nutr-mg-list';
+      meals.forEach(meal => {
+        const row = document.createElement('div');
+        row.className = 'nutr-meal-row' + (meal.planned ? ' planned' : '');
+        row.setAttribute('role', 'button'); row.tabIndex = 0;
+        const macros = [];
+        if (meal.protein) macros.push('P' + Math.round(meal.protein));
+        if (meal.carbs)   macros.push('C' + Math.round(meal.carbs));
+        if (meal.fat)     macros.push('F' + Math.round(meal.fat));
+        const title = meal.name || meal.description || g.cat;
+        const showDesc = meal.description && meal.description !== title;
+        row.innerHTML = `
+          <div class="nutr-meal-main">
+            <div class="nutr-meal-name${meal.planned ? ' planned' : ''}">${nutrEsc(title)}</div>
+            <div class="nutr-meal-sub">${meal.time ? `<span>${meal.time}</span>` : ''}${macros.length ? `<span class="nutr-meal-macros">${macros.join(' · ')}</span>` : ''}${showDesc ? `<span>${nutrEsc(meal.description)}</span>` : ''}</div>
+          </div>
+          <div class="nutr-meal-cal"><span class="nutr-meal-cal-num">${meal.planned ? '~' : ''}${Math.round(meal.calories || 0)}</span><span class="nutr-meal-cal-unit">kcal</span></div>`;
+        const open = () => openEditMealModal(meal.id);
+        row.addEventListener('click', open);
+        row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+        list.appendChild(row);
+      });
+      group.appendChild(list);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'nutr-mg-empty'; empty.textContent = 'Nothing logged yet';
+      group.appendChild(empty);
+    }
+    wrap.appendChild(group);
+  });
+}
+
 function renderNutrition() {
   const data    = loadNutritionData();
   const targets = data.targets;
   const totals  = nutritionTodayTotals(data);
   const today   = nutritionTodayKey();
+  const todayMeals = data.meals[today] || [];
 
-  // Date label
-  const dateEl = document.getElementById('nutrDateLabel');
-  if (dateEl) {
-    const ds = getActiveDateString();
-    const [dy, dm, dd] = ds.split('-').map(Number);
+  // Eyebrow date
+  const ebEl = document.getElementById('nutrEyebrow');
+  if (ebEl) {
+    const [dy, dm, dd] = getActiveDateString().split('-').map(Number);
     const d = new Date(dy, dm - 1, dd);
     const DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
     const MONS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-    dateEl.textContent = `${DAYS[d.getDay()]} · ${MONS[d.getMonth()]} ${d.getDate()}`;
+    ebEl.textContent = `${DAYS[d.getDay()]} · ${MONS[d.getMonth()]} ${d.getDate()}`;
   }
 
-  // Calorie hero
-  const calEl  = document.getElementById('nutrCalNum');
-  const tgtEl  = document.getElementById('nutrCalTarget');
+  // Calorie ring hero
+  const eaten = Math.round(totals.calories);
+  const goal  = targets.calories || 0;
+  const left  = goal - eaten;
+  const over  = left < 0;
+  const calPct = goal > 0 ? Math.min(100, (eaten / goal) * 100) : 0;
+  const arc = document.getElementById('nutrRingArc');
+  if (arc) {
+    const C = 527.79;
+    arc.style.strokeDashoffset = (C * (1 - calPct / 100)).toFixed(2);
+    arc.classList.toggle('over', over);
+  }
   const leftEl = document.getElementById('nutrCalLeft');
-  if (calEl)  calEl.textContent = totals.calories.toLocaleString();
-  if (tgtEl)  tgtEl.textContent = `/ ${targets.calories.toLocaleString()} kcal`;
-  const left = targets.calories - totals.calories;
-  if (leftEl) {
-    leftEl.textContent = left >= 0 ? `−${left} LEFT` : `+${Math.abs(left)} OVER`;
-    leftEl.className   = 'nutr-cal-left' + (left < 0 ? ' over' : '');
-  }
+  if (leftEl) { leftEl.textContent = Math.abs(left).toLocaleString(); leftEl.classList.toggle('over', over); }
+  const leftLblEl = document.getElementById('nutrCalLeftLbl');
+  if (leftLblEl) leftLblEl.textContent = over ? 'kcal over' : 'kcal left';
+  const eatenEl = document.getElementById('nutrCalEaten'); if (eatenEl) eatenEl.textContent = eaten.toLocaleString();
+  const goalEl  = document.getElementById('nutrCalGoal');  if (goalEl)  goalEl.textContent  = goal.toLocaleString();
 
-  // Macro rings (SVG circles)
-  const ringsEl = document.getElementById('nutrRingsRow');
-  if (ringsEl) {
-    const macros = [
-      { label: 'protein', value: totals.protein, target: targets.protein, unit: 'g', color: '#FF6B6B' },
-      { label: 'carbs',   value: totals.carbs,   target: targets.carbs,   unit: 'g', color: '#9AA8E8' },
-      { label: 'fat',     value: totals.fat,      target: targets.fat,     unit: 'g', color: '#6BE3A4' },
-    ];
-    ringsEl.innerHTML = '';
-    macros.forEach(m => {
-      const pct   = Math.min(100, m.target > 0 ? (m.value / m.target) * 100 : 0);
-      const r     = 24, cx = 28, cy = 28, sw = 3.5;
-      const circ  = 2 * Math.PI * r;
-      const off   = circ * (1 - pct / 100);
-      const wrap  = document.createElement('div');
-      wrap.className = 'nutr-ring-wrap';
-      wrap.innerHTML = `
-        <svg width="56" height="56" viewBox="0 0 56 56" style="display:block">
-          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="${sw}"/>
-          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${m.color}" stroke-width="${sw}"
-            stroke-linecap="round" stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
-            transform="rotate(-90 ${cx} ${cy})"/>
-        </svg>
-        <div class="nutr-ring-value" style="color:${m.color}">${m.value}</div>
-        <div class="nutr-ring-tgt">/${m.target}${m.unit}</div>
-        <div class="nutr-ring-lbl" style="color:${m.color}">${m.label}</div>`;
-      ringsEl.appendChild(wrap);
-    });
-  }
+  // Macro mini-rings
+  nutrSetMacroArc('nutrProArc',  'nutrProPct',  'nutrProVal',  'nutrProTgt',  totals.protein, targets.protein, 'g');
+  nutrSetMacroArc('nutrCarbArc', 'nutrCarbPct', 'nutrCarbVal', 'nutrCarbTgt', totals.carbs,   targets.carbs,   'g');
+  nutrSetMacroArc('nutrFatArc',  'nutrFatPct',  'nutrFatVal',  'nutrFatTgt',  totals.fat,     targets.fat,     'g');
 
-  // Micro coverage banner
-  const micro  = nutritionMicroCoverage(data);
-  const covEl  = document.getElementById('nutrCovOnTrack');
-  const ctotEl = document.getElementById('nutrCovTotal');
-  const cpctEl = document.getElementById('nutrCovPct');
-  const clowEl = document.getElementById('nutrCovLow');
-  if (covEl)  covEl.textContent  = micro.onTrack;
-  if (ctotEl) ctotEl.textContent = micro.total;
-  if (cpctEl) cpctEl.textContent = micro.pct + '%';
-  if (clowEl) clowEl.textContent = micro.lowCount + ' low';
+  // Streak chip
+  const streak = nutrComputeStreak(data);
+  const streakNum = document.getElementById('nutrStreakNum');
+  const streakChip = document.getElementById('nutrStreakChip');
+  if (streakNum) streakNum.textContent = streak;
+  if (streakChip) streakChip.classList.toggle('dim', streak === 0);
 
-  // Micro tiles grid (tracked micros only)
-  const gridEl = document.getElementById('nutrMicroGrid');
-  if (gridEl) {
-    gridEl.innerHTML = '';
-    micro.tiles.forEach(t => {
-      const isLow  = t.pct < 60;
-      const isOver = t.pct > 100;
-      const tile   = document.createElement('div');
-      tile.className = 'nutr-micro-tile' + (isLow ? ' low' : isOver ? ' over' : '');
-      tile.innerHTML = `
-        <span class="nutr-micro-pct">${t.pct}%</span>
-        ${isLow  ? '<span class="nutr-micro-alert warn">!</span>'  : ''}
-        ${isOver ? '<span class="nutr-micro-alert up">↑</span>' : ''}
-        <span class="nutr-micro-sym" style="color:${t.color}">${t.sym}</span>
-        <span class="nutr-micro-name">${t.name}</span>`;
-      gridEl.appendChild(tile);
-    });
-  }
-
-  // Chronic gaps sparks
-  const gapsTitleEl = document.getElementById('nutrGapsPeriodLbl');
-  if (gapsTitleEl) gapsTitleEl.textContent = '↓ CHRONIC GAPS · ' + nutrGapsWindow + 'D';
-  const gapsToggleEl = document.getElementById('nutrGapsToggleBtn');
-  if (gapsToggleEl) gapsToggleEl.textContent = (nutrGapsWindow === 14 ? '30D' : '14D') + ' ›';
-  const gapsEl = document.getElementById('nutrGapsCard');
-  if (gapsEl) {
-    gapsEl.innerHTML = '';
-    const gapsMicros = data.gapsMicros || [];
-    if (!gapsMicros.length) {
-      gapsEl.innerHTML = '<div class="nutr-empty" style="padding:6px 0">No nutrients selected — tap EDIT to choose.</div>';
-    } else {
-      // Colour legend
-      const legend = document.createElement('div');
-      legend.className = 'nutr-gaps-legend';
-      legend.innerHTML = `
-        <div class="nutr-gaps-leg-item"><div class="nutr-gaps-leg-dot" style="background:#FF6B6B"></div>&lt;40%</div>
-        <div class="nutr-gaps-leg-item"><div class="nutr-gaps-leg-dot" style="background:#F2A063"></div>40–79%</div>
-        <div class="nutr-gaps-leg-item"><div class="nutr-gaps-leg-dot" style="background:#6BE3A4"></div>≥80%</div>
-        <div class="nutr-gaps-leg-item"><div class="nutr-gaps-leg-dot" style="background:rgba(255,255,255,0.15)"></div>no data</div>`;
-      gapsEl.appendChild(legend);
-
-      gapsMicros.forEach(key => {
-        const micro = NUTR_ALL_MICROS.find(m => m.key === key);
-        if (!micro) return;
-        const days     = nutrGapsBuildHistory(data, key, nutrGapsWindow);
-        const dataDays = days.filter(d => d.pct !== null);
-        const avg      = dataDays.length > 0
-          ? Math.round(dataDays.reduce((a, d) => a + d.pct, 0) / dataDays.length)
-          : null;
-        const isLow = avg !== null && avg < 80;
-        const row = document.createElement('div');
-        row.className = 'nutr-spark-row';
-        const blocks = days.map(d =>
-          `<div class="nutr-spark-block" style="${nutrSparkBlockStyle(d.pct)}" title="${d.dateStr}: ${d.pct !== null ? d.pct + '%' : 'no data'}"></div>`
-        ).join('');
-        const avgText = avg !== null ? avg + '%' : '—';
-        row.innerHTML = `
-          <span class="nutr-spark-name ${isLow ? 'low' : avg === null ? 'none' : 'ok'}">${micro.name}</span>
-          <div class="nutr-spark-blocks${nutrGapsWindow === 30 ? ' w30' : ''}">${blocks}</div>
-          <span class="nutr-spark-avg ${isLow ? 'low' : avg === null ? 'none' : 'ok'}">${avgText}</span>`;
-        gapsEl.appendChild(row);
-      });
-    }
-  }
-
-  // Meals
-  const todayMeals = data.meals[today] || [];
-  const logged  = todayMeals.filter(m => !m.planned).length;
-  const planned = todayMeals.filter(m => m.planned).length;
-  const lcEl = document.getElementById('nutrLoggedCount');
-  const pcEl = document.getElementById('nutrPlannedCount');
-  if (lcEl) lcEl.textContent = logged;
-  if (pcEl) pcEl.textContent = planned;
-
-  const listEl = document.getElementById('nutrMealList');
-  if (listEl) {
-    listEl.innerHTML = '';
-    if (!todayMeals.length) {
-      listEl.innerHTML = '<div class="nutr-empty">No meals logged yet — tap + log to add your first meal.</div>';
-    } else {
-      todayMeals.forEach(meal => {
-        const mealColor = NUTR_MEAL_COLORS[meal.name] || 'rgba(255,255,255,0.2)';
-        const row = document.createElement('div');
-        row.className = 'nutr-meal-row' + (meal.planned ? ' planned' : '');
-        row.style.borderLeftColor = mealColor;
-        const nameNode = document.createElement('div');
-        nameNode.className = 'nutr-meal-name' + (meal.planned ? ' planned' : '');
-        nameNode.textContent = meal.name + (meal.planned ? ' · planned' : '');
-        const descNode = document.createElement('div');
-        descNode.className = 'nutr-meal-desc';
-        descNode.textContent = meal.description || '';
-        const timeNode = document.createElement('span');
-        timeNode.className = 'nutr-meal-time';
-        timeNode.textContent = meal.time;
-        const calNode = document.createElement('span');
-        calNode.className = 'nutr-meal-cal';
-        calNode.textContent = (meal.planned ? '~' : '') + meal.calories;
-        const bodyNode = document.createElement('div');
-        bodyNode.style.cssText = 'min-width:0';
-        bodyNode.appendChild(nameNode);
-        bodyNode.appendChild(descNode);
-        row.appendChild(timeNode);
-        row.appendChild(bodyNode);
-        row.appendChild(calNode);
-        row.addEventListener('click', () => openEditMealModal(meal.id));
-        listEl.appendChild(row);
-      });
-    }
-  }
+  nutrRenderQuickAdd(data);
+  nutrRenderWeightCard();
+  nutrRenderMicroCard(data);
+  nutrRenderMealGroups(data, todayMeals);
 }
 
-function openAddMealModal() {
+function nutrSetActiveCat(cat) {
+  document.querySelectorAll('#nutrMCatTog .nutr-cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+}
+
+function openAddMealModal(presetCat) {
   const modal = document.getElementById('nutrMealModal');
   if (!modal) return;
   document.getElementById('nutrMModalTitle').textContent = 'Log Meal';
+  nutrSetActiveCat(NUTR_MEAL_CATS.includes(presetCat) ? presetCat : nutrDefaultCatByTime());
   document.getElementById('nutrMName').value  = '';
   document.getElementById('nutrMDesc').value  = '';
   document.getElementById('nutrMCal').value   = '';
@@ -5767,6 +5942,7 @@ function openEditMealModal(id) {
   const modal = document.getElementById('nutrMealModal');
   if (!modal) return;
   document.getElementById('nutrMModalTitle').textContent = 'Edit Meal';
+  nutrSetActiveCat(nutrMealCategory(meal));
   document.getElementById('nutrMName').value  = meal.name        || '';
   document.getElementById('nutrMDesc').value  = meal.description || '';
   document.getElementById('nutrMTime').value  = meal.time        || '';
@@ -5808,6 +5984,7 @@ function submitMeal() {
   const carb    = parseFloat(document.getElementById('nutrMCarb').value) || 0;
   const fat     = parseFloat(document.getElementById('nutrMFat').value)  || 0;
   const planned = document.querySelector('.nutr-planned-btn.active')?.dataset.planned === 'true';
+  const category = document.querySelector('#nutrMCatTog .nutr-cat-btn.active')?.dataset.cat || nutrDefaultCatByTime();
   // Collect micro inputs
   const micros = {};
   NUTR_ALL_MICROS.forEach(m => {
@@ -5825,9 +6002,9 @@ function submitMeal() {
   const editId = modal?._editId;
   if (editId) {
     const idx = data.meals[today].findIndex(m => m.id === editId);
-    if (idx !== -1) data.meals[today][idx] = { ...data.meals[today][idx], name, description: desc, time, calories: cal, protein: pro, carbs: carb, fat, planned, micros };
+    if (idx !== -1) data.meals[today][idx] = { ...data.meals[today][idx], name, description: desc, time, calories: cal, protein: pro, carbs: carb, fat, planned, category, micros };
   } else {
-    data.meals[today].push({ id: crypto.randomUUID(), name, description: desc, time, calories: cal, protein: pro, carbs: carb, fat, planned, micros });
+    data.meals[today].push({ id: crypto.randomUUID(), name, description: desc, time, calories: cal, protein: pro, carbs: carb, fat, planned, category, micros });
   }
   data.meals[today].sort((a, b) => a.time.localeCompare(b.time));
   saveNutritionData(data);
@@ -5893,9 +6070,35 @@ function renderNutrMicroSettings() {
 function renderNutrAllMicros() {
   const data   = loadNutritionData();
   const totals = nutritionTodayTotals(data);
+  const cov    = nutritionMicroCoverage(data);
   const listEl = document.getElementById('nutrAllMicrosList');
   if (!listEl) return;
-  listEl.innerHTML = '';
+  const _r = 26, _C = 2 * Math.PI * _r, _off = _C * (1 - Math.min(100, cov.pct) / 100);
+  listEl.innerHTML = `
+    <div class="nutr-hub-summary">
+      <div class="nutr-hub-ring">
+        <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="32" r="${_r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="6"/>
+          <circle cx="32" cy="32" r="${_r}" fill="none" stroke="var(--success)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${_C.toFixed(1)}" stroke-dashoffset="${_off.toFixed(1)}"/>
+        </svg>
+        <div class="nutr-hub-ring-pct">${cov.pct}%</div>
+      </div>
+      <div class="nutr-hub-summary-txt">
+        <div class="nutr-hub-summary-h">${cov.onTrack} of ${cov.total} on track</div>
+        <div class="nutr-hub-summary-s">${cov.total ? cov.lowCount + " below 60% of today's target" : 'Tap Edit tracked to pick nutrients to follow'}</div>
+      </div>
+    </div>
+    <div class="nutr-hub-sect-hdr"><span class="nutr-hub-sect-title">Today &middot; all nutrients</span></div>
+    <div id="nutrHubToday"></div>
+    <div class="nutr-hub-sect-hdr">
+      <span class="nutr-hub-sect-title" id="nutrGapsHdrLbl">Chronic gaps &middot; ${nutrGapsWindow}d</span>
+      <span style="display:flex;gap:14px;align-items:center">
+        <button class="nutr-hub-link" id="nutrGapsToggleBtn" type="button">${nutrGapsWindow === 14 ? '30d' : '14d'}</button>
+        <button class="nutr-hub-link" id="nutrGapsEditBtn" type="button">Edit</button>
+      </span>
+    </div>
+    <div class="nutr-gaps-card" id="nutrGapsCard"></div>`;
+  const todayEl = document.getElementById('nutrHubToday');
   const CATS = [
     { key: 'vitamins',   label: 'Vitamins' },
     { key: 'minerals',   label: 'Minerals' },
@@ -5909,7 +6112,7 @@ function renderNutrAllMicros() {
     const catHdr = document.createElement('div');
     catHdr.className = 'nutr-all-cat-hdr';
     catHdr.textContent = cat.label.toUpperCase();
-    listEl.appendChild(catHdr);
+    todayEl.appendChild(catHdr);
     micros
       .map(m => {
         const amount = totals.micros[m.key] || 0;
@@ -5935,8 +6138,19 @@ function renderNutrAllMicros() {
             </div>
           </div>
           <span class="nutr-all-pct" style="color:${isLow ? 'var(--danger)' : isOver ? 'var(--success)' : 'var(--text-secondary)'}">${m.pct}%</span>`;
-        listEl.appendChild(row);
+        todayEl.appendChild(row);
       });
+  });
+
+  // Chronic gaps heatmap (window toggle + edit live in the hub)
+  nutrRenderGapsInto(document.getElementById('nutrGapsCard'), data);
+  document.getElementById('nutrGapsToggleBtn')?.addEventListener('click', () => {
+    nutrGapsWindow = nutrGapsWindow === 14 ? 30 : 14;
+    renderNutrAllMicros();
+  });
+  document.getElementById('nutrGapsEditBtn')?.addEventListener('click', () => {
+    renderNutrGapsSettings();
+    document.getElementById('nutrGapsSettingsPanel')?.classList.add('open');
   });
 }
 
@@ -6059,7 +6273,7 @@ function buildMicroAdvancedSection() {
 
 function initNutritionPage() {
   buildMicroAdvancedSection();
-  document.getElementById('nutrLogBtn')?.addEventListener('click', openAddMealModal);
+  document.getElementById('nutrLogBtn')?.addEventListener('click', () => openAddMealModal());
   document.getElementById('nutrMModalCancel')?.addEventListener('click', closeAddMealModal);
   document.getElementById('nutrMealModal')?.querySelector('.nutr-modal-bg')?.addEventListener('click', closeAddMealModal);
   document.getElementById('nutrMModalSave')?.addEventListener('click', submitMeal);
@@ -6067,41 +6281,48 @@ function initNutritionPage() {
     const modal = document.getElementById('nutrMealModal');
     if (modal?._editId && confirm('Delete this meal?')) deleteMeal(modal._editId);
   });
+  // Meal-type segmented control
+  document.querySelectorAll('#nutrMCatTog .nutr-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => nutrSetActiveCat(btn.dataset.cat));
+  });
+  // Logged / Planned toggle
   document.querySelectorAll('.nutr-planned-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.nutr-planned-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     });
   });
-  // Micro settings panel
-  document.getElementById('nutrCoverageCard')?.addEventListener('click', () => {
+  // Micronutrient hub (opened from the summary card)
+  const openMicroHub = () => {
+    renderNutrAllMicros();
+    document.getElementById('nutrAllMicrosPanel')?.classList.add('open');
+  };
+  const microCard = document.getElementById('nutrMicroCard');
+  microCard?.addEventListener('click', openMicroHub);
+  microCard?.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMicroHub(); } });
+  document.getElementById('nutrMicroCardLink')?.addEventListener('click', openMicroHub);
+  document.getElementById('nutrAllMicrosBack')?.addEventListener('click', () => {
+    document.getElementById('nutrAllMicrosPanel')?.classList.remove('open');
+  });
+  // Tracked-micros settings (gear in the hub header)
+  document.getElementById('nutrMicroSettingsOpen')?.addEventListener('click', () => {
     renderNutrMicroSettings();
     document.getElementById('nutrMicroSettingsPanel')?.classList.add('open');
   });
   document.getElementById('nutrMicroSettingsBack')?.addEventListener('click', () => {
     document.getElementById('nutrMicroSettingsPanel')?.classList.remove('open');
   });
-  // All micros panel
-  document.getElementById('nutrSeeAllBtn')?.addEventListener('click', () => {
-    renderNutrAllMicros();
-    document.getElementById('nutrAllMicrosPanel')?.classList.add('open');
-  });
-  document.getElementById('nutrAllMicrosBack')?.addEventListener('click', () => {
-    document.getElementById('nutrAllMicrosPanel')?.classList.remove('open');
-  });
-  // Gaps settings panel
-  document.getElementById('nutrGapsEditBtn')?.addEventListener('click', () => {
-    renderNutrGapsSettings();
-    document.getElementById('nutrGapsSettingsPanel')?.classList.add('open');
-  });
+  // Gaps settings panel (opened from the hub's Edit link)
   document.getElementById('nutrGapsSettingsBack')?.addEventListener('click', () => {
     document.getElementById('nutrGapsSettingsPanel')?.classList.remove('open');
   });
-  // Gaps window toggle
-  document.getElementById('nutrGapsToggleBtn')?.addEventListener('click', () => {
-    nutrGapsWindow = nutrGapsWindow === 14 ? 30 : 14;
-    renderNutrition();
-  });
+  // Weight card → Health tab (where weight is logged)
+  const wcard = document.getElementById('nutrWeightCard');
+  if (wcard) {
+    const goWt = () => { if (typeof switchTab === 'function') switchTab('health'); };
+    wcard.addEventListener('click', goWt);
+    wcard.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goWt(); } });
+  }
   renderNutrition();
 }
 
