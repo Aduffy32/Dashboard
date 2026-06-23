@@ -796,8 +796,10 @@ select.fin-input option { background: #111113; color: #FAFAFA; }
 /* ── Gym overlay system ──────────────────────────────────────────── */
 #page-gym { position: relative; }
 #page-gym.has-overlay { overflow: hidden; height: 100vh; }
+/* Any active tab can host a full-screen overlay (progress photos is shared) */
+.tab-page.has-overlay { overflow: hidden; height: 100vh; }
 .gym-overlay {
-  position: absolute; top: 0; left: 0; right: 0; min-height: 100%;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; min-height: 100%;
   z-index: 120; background: #050506; overflow-y: auto;
   transform: translateY(100%);
   visibility: hidden;

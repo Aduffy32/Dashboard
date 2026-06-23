@@ -44,12 +44,12 @@
         });
         const data = await res.json();
         if (data.success === true) {
-          window.location.href = 'health.html';
+          window.location.href = 'index.html#health';
         } else {
-          window.location.href = 'health.html?whoop_error=true';
+          window.location.href = 'index.html#health?whoop_error=true';
         }
       } catch (_) {
-        window.location.href = 'health.html?whoop_error=true';
+        window.location.href = 'index.html#health?whoop_error=true';
       }
     })();
   </script>

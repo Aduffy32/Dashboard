@@ -869,6 +869,41 @@ function renderSubscriptions() {
 function finAccLoad() { try { return JSON.parse(localStorage.getItem('po_finance_accounts') || '[]'); } catch { return []; } }
 function finAccSave(arr) { finAccounts = arr; localStorage.setItem('po_finance_accounts', JSON.stringify(arr)); }
 
+// Transaction → account linkage (kept local, like the accounts themselves).
+function finConvert(amount, fromCur, toCur) {
+  const eur = finToHome(amount, fromCur);              // → EUR
+  return (toCur === 'GBP') ? eur * finFxRate() : eur;  // EUR → target currency
+}
+function finAdjustAccount(accountId, type, amount, txnCur, direction) {
+  const all = finAccLoad();
+  const idx = all.findIndex(a => a.id === accountId);
+  if (idx < 0) return;
+  const accCur = all[idx].currency || FIN_HOME;
+  const delta = finConvert(amount, txnCur, accCur) * (type === 'income' ? 1 : -1) * direction;
+  all[idx].balance = Math.round(((Number(all[idx].balance) || 0) + delta) * 100) / 100;
+  finAccSave(all);
+}
+function finTxnAcctMapLoad() { try { return JSON.parse(localStorage.getItem('po_finance_txn_accounts') || '{}'); } catch { return {}; } }
+function finTxnAcctSet(txnId, accountId) { const m = finTxnAcctMapLoad(); if (accountId) m[txnId] = accountId; else delete m[txnId]; localStorage.setItem('po_finance_txn_accounts', JSON.stringify(m)); }
+function finTxnAcctGet(txnId) { return finTxnAcctMapLoad()[txnId]; }
+function finFillAccountSelect() {
+  const sel = document.getElementById('finTxnAccount');
+  if (!sel) return;
+  const prev = sel.value;
+  const accounts = finAccLoad();
+  sel.innerHTML = '<option value="">— No account —</option>' +
+    accounts.map(a => `<option value="${a.id}">${finEsc(a.name)} (${finCurSym(a.currency || FIN_HOME)})</option>`).join('');
+  if (prev && accounts.some(a => a.id === prev)) sel.value = prev;
+  else if (accounts.length) sel.value = accounts[0].id;
+}
+function finSyncTxnCurToAccount() {
+  const id = document.getElementById('finTxnAccount')?.value;
+  const acc = id ? finAccLoad().find(a => a.id === id) : null;
+  if (!acc) return;
+  finTxnCur = acc.currency || 'EUR';
+  document.querySelectorAll('#finTxnCur .fin-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.cur === finTxnCur));
+}
+
 function renderNetWorth() {
   const accounts = finAccLoad();
   const totalHome = accounts.reduce((s, a) => s + finToHome(a.balance, a.currency || FIN_HOME), 0);
@@ -996,7 +1031,11 @@ function renderFinance() {
       del.addEventListener('click', async () => {
         if (!db) return;
         const { error } = await db.from('transactions').delete().eq('id', txn.id);
-        if (!error) loadFinance();
+        if (!error) {
+          const acctId = finTxnAcctGet(txn.id);
+          if (acctId) { finAdjustAccount(acctId, txn.type, txn.amount, txn.currency, -1); finTxnAcctSet(txn.id, null); }
+          loadFinance();
+        }
       });
 
       item.append(icon, info, amount, del);
@@ -1192,9 +1231,10 @@ function initFinance() {
   // ── Add-transaction modal ──
   finSegInit(document.getElementById('finTxnType'), 'type', v => { finSelectedType = v; }, 'expense');
   finSegInit(document.getElementById('finTxnCur'), 'cur', v => { finTxnCur = v; }, 'EUR');
-  const openAdd = () => { finHideModal('finSubModal'); document.getElementById('finTxnStatus').textContent = ''; finShowModal('finTxnModal'); };
+  const openAdd = () => { finHideModal('finSubModal'); finFillAccountSelect(); finSyncTxnCurToAccount(); document.getElementById('finTxnStatus').textContent = ''; finShowModal('finTxnModal'); };
   document.getElementById('finOpenAddBtn')?.addEventListener('click', openAdd);
   document.getElementById('finOpenAddBtn2')?.addEventListener('click', openAdd);
+  document.getElementById('finTxnAccount')?.addEventListener('change', finSyncTxnCurToAccount);
   document.getElementById('finTxnCancel')?.addEventListener('click', () => finHideModal('finTxnModal'));
   document.getElementById('finTxnModalBg')?.addEventListener('click', () => finHideModal('finTxnModal'));
   document.getElementById('finTxnSave')?.addEventListener('click', async () => {
@@ -1202,15 +1242,17 @@ function initFinance() {
     const category = document.getElementById('finCategory').value;
     const date     = document.getElementById('finDate').value;
     const note     = document.getElementById('finNote').value.trim();
+    const accountId = document.getElementById('finTxnAccount').value || null;
     const status   = document.getElementById('finTxnStatus');
     if (!amount || amount <= 0 || !date) { status.textContent = 'Enter an amount and date.'; return; }
     if (!db || !currentUser) { status.textContent = 'Not connected — sign in first.'; return; }
     const btn = document.getElementById('finTxnSave'); btn.disabled = true;
-    const { error } = await db.from('transactions').insert({
+    const { data, error } = await db.from('transactions').insert({
       user_id: currentUser.id, amount, type: finSelectedType, category, date, note: note || null, currency: finTxnCur
-    });
+    }).select().single();
     btn.disabled = false;
     if (error) { status.textContent = error.message || 'Failed to save.'; return; }
+    if (accountId && data) { finAdjustAccount(accountId, finSelectedType, amount, finTxnCur, 1); finTxnAcctSet(data.id, accountId); }
     document.getElementById('finAmount').value = '';
     document.getElementById('finNote').value   = '';
     finHideModal('finTxnModal');
@@ -2816,7 +2858,7 @@ function photosLoad() {
 function photosOpen() {
   const overlay = document.getElementById('photosOverlay');
   if (!overlay) return;
-  overlay.closest('.tab-page')?.classList.add('has-overlay');
+  document.querySelector('.tab-page.active')?.classList.add('has-overlay'); // lock background scroll
   overlay.classList.add('open');
   photosRender();
 }
@@ -2825,7 +2867,7 @@ function photosClose() {
   const overlay = document.getElementById('photosOverlay');
   if (!overlay) return;
   overlay.classList.remove('open');
-  overlay.closest('.tab-page')?.classList.remove('has-overlay');
+  document.querySelectorAll('.tab-page.has-overlay').forEach(p => p.classList.remove('has-overlay'));
   document.getElementById('photoViewer')?.classList.remove('open');
   document.getElementById('photoCompare')?.classList.remove('open');
 }
@@ -5637,14 +5679,20 @@ async function initWhoop() {
     history.replaceState(null, '', location.pathname);
   }
 
-  // Hash-based tab navigation (legacy / manual deep links)
+  // Initial route from the URL hash — deep links / reload, e.g. #health or #health/body
   const hashStr    = location.hash.slice(1);
   const qIdx       = hashStr.indexOf('?');
-  const hashTab    = qIdx >= 0 ? hashStr.slice(0, qIdx) : hashStr;
+  const hashPath   = qIdx >= 0 ? hashStr.slice(0, qIdx) : hashStr;
   const hashParams = new URLSearchParams(qIdx >= 0 ? hashStr.slice(qIdx + 1) : '');
   if (hashParams.get('whoop_error') === 'true') whoopCache.connectError = true;
-  if (hashTab && document.getElementById('page-' + hashTab)) switchTab(hashTab);
-  if (location.hash) history.replaceState(null, '', location.pathname);
+  const seg = hashPath.split('/');
+  if (seg[0] && document.getElementById('page-' + seg[0])) {
+    applyTab(seg[0], seg[1] || null);
+    // Normalise to a clean tab hash (drops any ?whoop_error=true query)
+    try { history.replaceState(null, '', '#' + seg[0] + (seg[1] ? '/' + seg[1] : '')); } catch (e) {}
+  } else if (location.hash) {
+    history.replaceState(null, '', location.pathname);
+  }
 
   loadWhoopData();
 }
@@ -6624,13 +6672,36 @@ function initNutritionPage() {
   renderNutrition();
 }
 
-// ── Tab navigation ─────────────────────────────────────────
-function switchTab(id) {
-  const pageMap = { home: 'index.html', tasks: 'tasks.html', goals: 'goals.html', gym: 'gym.html', health: 'health.html', nutrition: 'nutrition.html', finance: 'finance.html' };
-  window.location.href = pageMap[id] || (id + '.html');
+// ── Tab navigation (single-page app) ───────────────────────
+// All tabs live in one document as .tab-page sections. applyTab() swaps the
+// visible section + nav state; switchTab() additionally records a history entry
+// so the browser back/forward buttons move between tabs. A sub-section (e.g.
+// 'body' on the Health tab) is broadcast via the 'tab-changed' event.
+function applyTab(id, sub) {
+  let page = document.getElementById('page-' + id);
+  if (!page) { id = 'home'; sub = null; page = document.getElementById('page-home'); }
+  if (!page) return;
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  page.classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+  window.scrollTo(0, 0);
+  window.dispatchEvent(new CustomEvent('tab-changed', { detail: { tab: id, sub: sub || null } }));
 }
+function switchTab(id, sub) {
+  id = id || 'home';
+  if (!document.getElementById('page-' + id)) { id = 'home'; sub = null; }
+  const hash = '#' + id + (sub ? '/' + sub : '');
+  if (location.hash !== hash) { try { history.pushState(null, '', hash); } catch (e) { location.hash = hash; } }
+  applyTab(id, sub);
+}
+function routeFromHash() {
+  const path = location.hash.slice(1).split('?')[0];
+  const seg  = path.split('/');
+  applyTab(seg[0] || 'home', seg[1] || null);
+}
+window.addEventListener('hashchange', routeFromHash); // back/forward + manual hash edits
 document.querySelectorAll('.nav-tab').forEach(btn => {
-  if (btn.hasAttribute('data-nav-cycle')) return; // health cycle btn is handled locally on health.html
+  if (btn.hasAttribute('data-nav-cycle')) return; // health cycle btn is handled locally
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
@@ -7096,5 +7167,7 @@ function initGoalsSystem(){
 }
 
 initMountainsBg();
-document.getElementById('authOverlay')?.classList.remove('hidden');
+// NB: do NOT force-show the auth overlay here. initAuth() reveals it only when
+// getSession() confirms there is no session — showing it eagerly caused the
+// Google-login screen to flash on every load before auth resolved.
 initAuth();
