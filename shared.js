@@ -293,9 +293,20 @@ function runRollover() {
   const texts  = new Set(today.map(g => g.text));
   let changed  = false;
   storeListKeys('goals:').forEach(key => {
-    const date = key.slice(6); if (date >= active) return;
-    (storeGet(key) || []).filter(g => !g.done).forEach(g => {
-      if (!texts.has(g.text)) { today.push({ text: g.text, done: false }); texts.add(g.text); changed = true; }
+    const date = key.slice(6);
+    if (date === 'tomorrow' || date === 'review') return; // not real day stores
+    if (date >= active) return;
+    (storeGet(key) || []).forEach(g => {
+      if (g.done) return;
+      // Recurring calendar/template items re-materialize on their own day —
+      // never roll them over or they pile up as duplicates of today's blocks.
+      if (g.tplId || g.cal) return;
+      if (texts.has(g.text)) return;                       // de-dupe by text
+      const carried = Object.assign({}, g, { done: false });
+      delete carried.id;                                   // fresh id assigned on next render
+      delete carried.doneAt;
+      today.push(carried);
+      texts.add(g.text); changed = true;
     });
     storeDelete(key);
   });
@@ -727,6 +738,13 @@ let finBudgets      = [];
 let finSubs         = [];
 let finAccounts     = [];
 let finSelectedType = 'expense';
+// Subscriptions sync to Supabase when the `subscriptions` table exists; if it
+// doesn't (migration not run), we fall back to localStorage so saving still works.
+let finSubsRemote   = true;
+function finSubsLocalLoad() { try { return JSON.parse(localStorage.getItem('po_finance_subs') || '[]'); } catch { return []; } }
+function finSubsLocalSave(arr) { localStorage.setItem('po_finance_subs', JSON.stringify(arr)); }
+function finSubIsLocalId(id) { return typeof id === 'string' && id.startsWith('loc-'); }
+function finSubLocalId() { return 'loc-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
 // ── Currency / FX ──
 function finFxRate() {            // GBP per €1 (editable approximation)
@@ -760,7 +778,7 @@ function getMonthRange() {
 
 async function loadFinance() {
   finAccounts = finAccLoad();
-  if (!db || !currentUser) { renderFinance(); renderBudgets(); renderSubscriptions(); renderNetWorth(); return; }
+  if (!db || !currentUser) { finSubs = finSubsLocalLoad(); renderFinance(); renderBudgets(); renderSubscriptions(); renderNetWorth(); return; }
   const { start, end } = getMonthRange();
   const [txnRes, budgetRes, subRes] = await Promise.all([
     db.from('transactions').select('*').eq('user_id', currentUser.id)
@@ -772,10 +790,16 @@ async function loadFinance() {
   ]);
   if (txnRes.error)    { console.error('Finance load error:', txnRes.error); return; }
   if (budgetRes.error) { console.error('Budgets load error:', budgetRes.error); }
-  if (subRes && subRes.error) { console.warn('Subscriptions load skipped (table not created yet?):', subRes.error.message); }
   finTransactions = txnRes.data    || [];
   finBudgets      = budgetRes.data || [];
-  finSubs         = (subRes && subRes.data) || [];
+  if (subRes && subRes.error) {
+    finSubsRemote = false;   // table missing → keep subscriptions in localStorage
+    console.warn('Subscriptions table not found — using local storage.', subRes.error.message);
+    finSubs = finSubsLocalLoad();
+  } else {
+    finSubsRemote = true;
+    finSubs = (subRes && subRes.data) || [];
+  }
   renderFinance();
   renderSubscriptions();
   renderBudgets();
@@ -904,9 +928,13 @@ function finSyncTxnCurToAccount() {
   document.querySelectorAll('#finTxnCur .fin-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.cur === finTxnCur));
 }
 
+function finNetWorthHome() {       // total net worth converted to EUR home
+  return finAccLoad().reduce((s, a) => s + finToHome(a.balance, a.currency || FIN_HOME), 0);
+}
+
 function renderNetWorth() {
   const accounts = finAccLoad();
-  const totalHome = accounts.reduce((s, a) => s + finToHome(a.balance, a.currency || FIN_HOME), 0);
+  const totalHome = finNetWorthHome();
   const totalEl = document.getElementById('finNwTotal');
   if (totalEl) { totalEl.textContent = finFmtHome(totalHome); totalEl.style.color = totalHome < 0 ? 'var(--danger)' : 'var(--text-primary)'; }
 
@@ -924,6 +952,97 @@ function renderNetWorth() {
       ? accounts.map(a => `<div class="fin-nw-account"><div><div class="fin-nw-acc-name">${finEsc(a.name)}</div><div class="fin-nw-acc-type">${finEsc(a.type)} · ${finCurSym(a.currency || FIN_HOME)}</div></div><div class="fin-nw-acc-balance">${formatMoney(a.balance, a.currency)}</div></div>`).join('')
       : '<div class="empty-state">No accounts yet — tap Edit to add.</div>';
   }
+  renderWishlist();   // wishlist affordability is a % of net worth, so refresh it alongside
+}
+
+// ── Wishlist (localStorage) ────────────────────────────────────
+// An item is "affordable" when its price is a small slice of net worth.
+// Thresholds (of total net worth, home €):
+//   ≤ WISH_GREEN%  → comfortably affordable ("Go for it")
+//   ≤ WISH_AMBER%  → significant, worth a pause ("Worth a think")
+//   above          → a major purchase relative to your wealth ("Big purchase")
+// Rationale: the personal-finance "1% rule" — a discretionary buy under ~1% of
+// net worth is a no-brainer; 1–5% deserves thought; >5% is a real dent.
+const WISH_GREEN = 1;
+const WISH_AMBER = 5;
+const FIN_WISH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7S10.5 3 7.5 3a2.5 2.5 0 0 0 0 5H12z"/><path d="M12 7s1.5-4 4.5-4a2.5 2.5 0 0 1 0 5H12z"/></svg>';
+
+function finWishLoad() { try { return JSON.parse(localStorage.getItem('po_finance_wishlist') || '[]'); } catch { return []; } }
+function finWishSave(arr) { localStorage.setItem('po_finance_wishlist', JSON.stringify(arr)); }
+function finWishId() { return 'wish-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function finWishPctTxt(pct) { return (pct < 0.1 ? '<0.1' : pct.toFixed(pct < 10 ? 1 : 0)) + '%'; }
+function finWishTier(pct, hasNetWorth) {
+  if (!hasNetWorth)        return { cls: 'none',    label: 'Set net worth' };
+  if (pct <= WISH_GREEN)   return { cls: 'safe',    label: 'Go for it' };
+  if (pct <= WISH_AMBER)   return { cls: 'warning', label: 'Worth a think' };
+  return                          { cls: 'danger',  label: 'Big purchase' };
+}
+
+function finWishRowHtml(w, nwHome) {
+  const hasNw = nwHome > 0;
+  const priceHome = finToHome(w.price, w.currency || FIN_HOME);
+  const pct = hasNw ? (priceHome / nwHome * 100) : 0;
+  const tier = finWishTier(pct, hasNw);
+  const barW = hasNw ? Math.max(2, Math.min(100, pct)) : 0;
+  const foot = hasNw ? `${finWishPctTxt(pct)} of net worth` : 'add accounts to gauge';
+  return `<div class="fin-wish-card" data-wish="${w.id}" role="button" tabindex="0">
+    <div class="fin-wish-top">
+      <div class="fin-wish-icon ${tier.cls}">${FIN_WISH_ICON}</div>
+      <div class="fin-wish-name">${finEsc(w.name)}</div>
+      <div class="fin-wish-price">${formatMoney(w.price, w.currency)}</div>
+    </div>
+    <div class="fin-wish-bar-wrap"><div class="fin-wish-bar ${tier.cls}" style="width:${barW}%"></div></div>
+    <div class="fin-wish-foot">
+      <span>${foot}</span>
+      <span class="fin-wish-pill ${tier.cls}">${tier.label}</span>
+    </div>
+  </div>`;
+}
+
+function renderWishlist() {
+  const list = document.getElementById('finWishList');
+  if (!list) return;
+  const items = finWishLoad();
+  const nwHome = finNetWorthHome();
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state">Nothing on your wishlist — tap + Add to track something you want and see what share of your net worth it is.</div>';
+    return;
+  }
+  // Cheapest-as-a-%-of-net-worth first (most affordable on top).
+  const sorted = items.slice().sort((a, b) => finToHome(a.price, a.currency) - finToHome(b.price, b.currency));
+  list.innerHTML = sorted.map(w => finWishRowHtml(w, nwHome)).join('');
+  list.querySelectorAll('.fin-wish-card').forEach(r => {
+    const open = () => finOpenWishModal(r.dataset.wish);
+    r.addEventListener('click', open);
+    r.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  });
+}
+
+let finWishCur = 'EUR', finEditWishId = null;
+function finWishUpdateHint() {
+  const hintEl = document.getElementById('finWishHint');
+  if (!hintEl) return;
+  const price = parseFloat(document.getElementById('finWishPrice').value);
+  const nw = finNetWorthHome();
+  if (!price || price <= 0) { hintEl.textContent = ''; hintEl.className = 'fin-wish-hint'; return; }
+  if (nw <= 0) { hintEl.textContent = 'Add your accounts under Net worth to see affordability.'; hintEl.className = 'fin-wish-hint'; return; }
+  const pct = finToHome(price, finWishCur) / nw * 100;
+  const tier = finWishTier(pct, true);
+  hintEl.textContent = `${finWishPctTxt(pct)} of your ${finFmtHome(nw)} net worth · ${tier.label}`;
+  hintEl.className = 'fin-wish-hint ' + tier.cls;
+}
+function finOpenWishModal(id) {
+  const w = id ? finWishLoad().find(x => x.id === id) : null;
+  finEditWishId = w ? w.id : null;
+  document.getElementById('finWishModalTitle').textContent = w ? 'Edit wishlist item' : 'Add to wishlist';
+  document.getElementById('finWishName').value = w ? w.name : '';
+  document.getElementById('finWishPrice').value = w ? w.price : '';
+  finWishCur = w ? (w.currency || 'EUR') : 'EUR';
+  document.querySelectorAll('#finWishCur .fin-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.cur === finWishCur));
+  document.getElementById('finWishDelete').style.display = w ? 'inline-block' : 'none';
+  document.getElementById('finWishStatus').textContent = '';
+  finWishUpdateHint();
+  finShowModal('finWishModal');
 }
 
 function finAccPanelRender() {
@@ -1283,22 +1402,73 @@ function initFinance() {
     if (!name) { status.textContent = 'Enter a name.'; return; }
     if (!amount || amount <= 0) { status.textContent = 'Enter an amount.'; return; }
     if (!next_renewal) { status.textContent = 'Pick the next renewal date.'; return; }
-    if (!db || !currentUser) { status.textContent = 'Not connected — sign in first.'; return; }
     const btn = document.getElementById('finSubSave'); btn.disabled = true;
-    const row = { user_id: currentUser.id, name, amount, currency: finSubModalCur, cycle, category, next_renewal, is_trial: !!finSubTrialFlag, trial_ends: finSubTrialFlag ? trial_ends : null, active: true };
-    let error;
-    if (finEditSubId) ({ error } = await db.from('subscriptions').update(row).eq('id', finEditSubId));
-    else ({ error } = await db.from('subscriptions').insert(row));
+    const fields = { name, amount, currency: finSubModalCur, cycle, category, next_renewal, is_trial: !!finSubTrialFlag, trial_ends: finSubTrialFlag ? trial_ends : null, active: true };
+    // Use Supabase when the table exists and this isn't a local-only row; otherwise localStorage.
+    const useRemote = db && currentUser && finSubsRemote && !finSubIsLocalId(finEditSubId);
+    let error = null;
+    if (useRemote) {
+      const row = { user_id: currentUser.id, ...fields };
+      if (finEditSubId) ({ error } = await db.from('subscriptions').update(row).eq('id', finEditSubId));
+      else ({ error } = await db.from('subscriptions').insert(row));
+      if (error) finSubsRemote = false;   // table missing → fall through to localStorage
+    }
+    if (!useRemote || error) {
+      const arr = finSubsLocalLoad();
+      if (finEditSubId) {
+        const i = arr.findIndex(s => s.id === finEditSubId);
+        if (i >= 0) arr[i] = { ...arr[i], ...fields }; else arr.push({ id: finEditSubId, ...fields });
+      } else {
+        arr.push({ id: finSubLocalId(), ...fields });
+      }
+      finSubsLocalSave(arr);
+    }
     btn.disabled = false;
-    if (error) { status.textContent = error.message || 'Failed to save (is the subscriptions table created?).'; return; }
     finHideModal('finSubModal');
     loadFinance();
   });
   document.getElementById('finSubDelete')?.addEventListener('click', async () => {
-    if (!finEditSubId || !db) return;
-    const { error } = await db.from('subscriptions').delete().eq('id', finEditSubId);
-    if (!error) { finHideModal('finSubModal'); loadFinance(); }
+    if (!finEditSubId) return;
+    if (db && currentUser && finSubsRemote && !finSubIsLocalId(finEditSubId)) {
+      const { error } = await db.from('subscriptions').delete().eq('id', finEditSubId);
+      if (!error) { finHideModal('finSubModal'); loadFinance(); return; }
+      finSubsRemote = false;   // table missing → fall through to localStorage
+    }
+    finSubsLocalSave(finSubsLocalLoad().filter(s => s.id !== finEditSubId));
+    finHideModal('finSubModal');
+    loadFinance();
   });
+
+  // ── Wishlist ──
+  finSegInit(document.getElementById('finWishCur'), 'cur', v => { finWishCur = v; finWishUpdateHint(); }, 'EUR');
+  document.getElementById('finWishAddBtn')?.addEventListener('click', () => finOpenWishModal(null));
+  document.getElementById('finWishCancel')?.addEventListener('click', () => finHideModal('finWishModal'));
+  document.getElementById('finWishModalBg')?.addEventListener('click', () => finHideModal('finWishModal'));
+  document.getElementById('finWishPrice')?.addEventListener('input', finWishUpdateHint);
+  document.getElementById('finWishSave')?.addEventListener('click', () => {
+    const name  = document.getElementById('finWishName').value.trim();
+    const price = parseFloat(document.getElementById('finWishPrice').value);
+    const status = document.getElementById('finWishStatus');
+    if (!name) { status.textContent = 'Name the item.'; return; }
+    if (!price || price <= 0) { status.textContent = 'Enter a price.'; return; }
+    const arr = finWishLoad();
+    if (finEditWishId) {
+      const i = arr.findIndex(w => w.id === finEditWishId);
+      if (i >= 0) arr[i] = { ...arr[i], name, price, currency: finWishCur };
+    } else {
+      arr.push({ id: finWishId(), name, price, currency: finWishCur });
+    }
+    finWishSave(arr);
+    finHideModal('finWishModal');
+    renderWishlist();
+  });
+  document.getElementById('finWishDelete')?.addEventListener('click', () => {
+    if (!finEditWishId) return;
+    finWishSave(finWishLoad().filter(w => w.id !== finEditWishId));
+    finHideModal('finWishModal');
+    renderWishlist();
+  });
+  document.getElementById('finWishName')?.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('finWishPrice').focus(); });
 
   // ── Budget modal ──
   document.getElementById('finBudgetSetBtn')?.addEventListener('click', () => { document.getElementById('finBudgetStatus').textContent = ''; finShowModal('finBudgetModal'); });
@@ -4660,9 +4830,18 @@ function writeHealthBridge() {
     const hrv           = rec?.score?.hrv_rmssd_milli != null ? Math.round(rec.score.hrv_rmssd_milli) : null;
     const rhr           = rec?.score?.resting_heart_rate != null ? Math.round(rec.score.resting_heart_rate) : null;
     const sleepPerf     = rec?.score?.sleep_performance_percentage ?? null;
-    const sleepHours    = sleep0
-      ? (() => { try { return (new Date(sleep0.end) - new Date(sleep0.start)) / 3600000; } catch { return null; } })()
-      : null;
+    // Actual time asleep = light + SWS + REM (excludes awake time in bed), matching
+    // Whoop's headline "hours of sleep". Falls back to time-in-bed (start→end) only
+    // when the stage breakdown is unavailable.
+    const sleepHours    = (() => {
+      if (!sleep0) return null;
+      const g = sleep0.score?.stage_summary;
+      const asleepMs = g
+        ? (g.total_light_sleep_time_milli || 0) + (g.total_slow_wave_sleep_time_milli || 0) + (g.total_rem_sleep_time_milli || 0)
+        : 0;
+      if (asleepMs > 0) return asleepMs / 3600000;
+      try { return (new Date(sleep0.end) - new Date(sleep0.start)) / 3600000; } catch { return null; }
+    })();
     const strain        = cycle?.score?.strain ?? null;
 
     const bridge = {
@@ -4671,7 +4850,7 @@ function writeHealthBridge() {
       hrv:          hrv,
       rhr:          rhr,
       sleepPerf:    sleepPerf,
-      sleepHours:   sleepHours != null ? Math.round(sleepHours * 10) / 10 : null,
+      sleepHours:   sleepHours != null ? Math.round(sleepHours * 100) / 100 : null,
       strain:       strain,
       updatedAt:    Date.now(),
     };
@@ -4711,9 +4890,10 @@ function renderWhoopHomeWidget() {
   const strain   = cycle?.score?.strain            ?? null;
   const sleepPerf= sleep0?.score?.sleep_performance_percentage ?? null;
   const stageSum = sleep0?.score?.stage_summary;
+  // Actual time asleep = light + SWS + REM (excludes awake time in bed).
   const sleepMs  = stageSum
     ? (stageSum.total_rem_sleep_time_milli||0)+(stageSum.total_slow_wave_sleep_time_milli||0)
-      +(stageSum.total_light_sleep_time_milli||0)+(stageSum.total_awake_time_milli||0)
+      +(stageSum.total_light_sleep_time_milli||0)
     : 0;
   const sleepDurH = sleepMs ? (sleepMs/3600000).toFixed(1) : null;
   const scoreColor = score !== null ? recoveryColor(score) : 'var(--text-secondary)';
@@ -7161,9 +7341,25 @@ function calSeedDefaultsOnce(){
   }
 }
 
+// Remove plain (non-calendar) entries whose text duplicates a calendar/template
+// entry already present that day. Heals the old rollover bug where recurring
+// blocks were carried forward as bare {text,done} copies alongside the real
+// materialized ones. Surgical + idempotent: only drops a plain entry when an
+// equivalent calendar entry covers it, so genuine ad-hoc tasks are untouched.
+function calDedupeDuplicates(ds){
+  try {
+    const key = calGoalsKey(ds);
+    const arr = (typeof storeGet==='function' ? storeGet(key) : null) || [];
+    const calTexts = new Set(arr.filter(g => g && (g.tplId || g.cal)).map(g => g.text));
+    const out = arr.filter(g => !(g && !g.tplId && !g.cal && calTexts.has(g.text)));
+    if (out.length !== arr.length && typeof storeSet==='function') storeSet(key, out);
+  } catch (_) {}
+}
+
 function initGoalsSystem(){
   calSeedDefaultsOnce();
   calMaterializeDate(calTodayStr());
+  calDedupeDuplicates(calTodayStr());
 }
 
 initMountainsBg();

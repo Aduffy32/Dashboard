@@ -546,6 +546,40 @@ select.fin-input option { background: #111113; color: #FAFAFA; }
 @media (hover:hover){.fin-budget-card:hover .fin-budget-del{opacity:.6;}}
 .fin-budget-del:hover{color:var(--danger);opacity:1;}
 
+/* Wishlist */
+.fin-wish-legend{display:flex;gap:14px;margin:-4px 2px 11px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--text-tertiary);}
+.fin-wish-legend span{display:flex;align-items:center;gap:5px;}
+.fin-wish-dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+.fin-wish-dot.safe{background:var(--success);}
+.fin-wish-dot.warning{background:var(--warning);}
+.fin-wish-dot.danger{background:var(--danger);}
+.fin-wish-card{background:rgba(255,255,255,.035);border:1px solid var(--hairline);border-radius:14px;padding:13px 15px;margin-bottom:8px;cursor:pointer;transition:background .15s,transform .16s var(--ease-out-expo);}
+.fin-wish-card:active{transform:scale(.99);}
+@media (hover:hover){.fin-wish-card:hover{background:rgba(255,255,255,.05);}}
+.fin-wish-top{display:flex;align-items:center;gap:11px;margin-bottom:10px;}
+.fin-wish-icon{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);color:var(--text-secondary);transition:background .3s,color .3s;}
+.fin-wish-icon svg{width:17px;height:17px;}
+.fin-wish-icon.safe{background:rgba(87,224,161,.14);color:var(--success);}
+.fin-wish-icon.warning{background:rgba(242,192,99,.14);color:var(--warning);}
+.fin-wish-icon.danger{background:rgba(242,129,138,.14);color:var(--danger);}
+.fin-wish-name{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fin-wish-price{flex-shrink:0;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-primary);}
+.fin-wish-bar-wrap{position:relative;height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;}
+.fin-wish-bar{height:100%;border-radius:4px;transition:width .6s var(--ease-out-expo),background .4s;}
+.fin-wish-bar.safe{background:var(--success);}
+.fin-wish-bar.warning{background:var(--warning);}
+.fin-wish-bar.danger{background:var(--danger);}
+.fin-wish-bar.none{background:rgba(255,255,255,.12);}
+.fin-wish-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:9.5px;letter-spacing:.04em;color:var(--text-tertiary);}
+.fin-wish-pill{flex-shrink:0;padding:2px 8px;border-radius:6px;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.08);color:var(--text-tertiary);}
+.fin-wish-pill.safe{background:rgba(87,224,161,.15);color:var(--success);}
+.fin-wish-pill.warning{background:rgba(242,192,99,.15);color:var(--warning);}
+.fin-wish-pill.danger{background:rgba(242,129,138,.15);color:var(--danger);}
+.fin-wish-hint{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--text-tertiary);min-height:15px;margin-bottom:4px;transition:color .2s;}
+.fin-wish-hint.safe{color:var(--success);}
+.fin-wish-hint.warning{color:var(--warning);}
+.fin-wish-hint.danger{color:var(--danger);}
+
 /* Spending chart (area + line) */
 .fin-chart-card{margin-bottom:4px;}
 .fin-chart-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;}
@@ -606,8 +640,8 @@ select.fin-input option { background: #111113; color: #FAFAFA; }
 .fin-status{font-size:11.5px;color:var(--text-tertiary);min-height:14px;margin-top:8px;}
 
 /* Polish */
-.fin-add-btn:focus-visible,.fin-sec-action:focus-visible,.fin-sub-row:focus-visible,.fin-panel-back:focus-visible,.fin-panel-add:focus-visible,.fin-seg-btn:focus-visible,.fin-modal-save:focus-visible,.fin-modal-cancel:focus-visible,.fin-budget-del:focus-visible,.fin-txn-del:focus-visible,.fin-nw-account:focus-visible{outline:2px solid var(--accent-work);outline-offset:2px;}
-@media (prefers-reduced-motion:reduce){.fin-flow-fill,.fin-budget-bar,.fin-chart-line,.fin-sub-row,.fin-panel,.fin-add-btn,.fin-modal-save{transition:none!important;}}
+.fin-add-btn:focus-visible,.fin-sec-action:focus-visible,.fin-sub-row:focus-visible,.fin-wish-card:focus-visible,.fin-panel-back:focus-visible,.fin-panel-add:focus-visible,.fin-seg-btn:focus-visible,.fin-modal-save:focus-visible,.fin-modal-cancel:focus-visible,.fin-budget-del:focus-visible,.fin-txn-del:focus-visible,.fin-nw-account:focus-visible{outline:2px solid var(--accent-work);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){.fin-flow-fill,.fin-budget-bar,.fin-wish-bar,.fin-chart-line,.fin-sub-row,.fin-wish-card,.fin-panel,.fin-add-btn,.fin-modal-save{transition:none!important;}}
 
 /* ── Gym Coach ─────────────────────────────────────────────── */
 .gym-day-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:6px; }

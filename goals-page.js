@@ -56,8 +56,15 @@
     $('subtabGoals').setAttribute('aria-selected', which === 'goals');
     $('panelCal').classList.toggle('active', which === 'cal');
     $('panelGoals').classList.toggle('active', which === 'goals');
-    $('calFab').style.display = which === 'cal' ? 'flex' : 'none';
+    updateCalFab();
     if (which === 'goals') renderGoals(); else renderCal();
+  }
+  // The add-event FAB is fixed-position and lives outside the tab pages, so its
+  // visibility must track BOTH the active main tab (goals) and the calendar
+  // sub-tab — otherwise it lingers after navigating to another tab.
+  function updateCalFab() {
+    const onCalendar = document.getElementById('page-goals')?.classList.contains('active') && sub === 'cal';
+    $('calFab').style.display = onCalendar ? 'flex' : 'none';
   }
 
   /* ═══════════════════════ CALENDAR ═══════════════════════ */
@@ -553,6 +560,10 @@
 
     // Cross-tab / cross-device updates
     ['goals-changed', 'calendar-changed', 'lifegoals-changed'].forEach(ev => window.addEventListener(ev, () => { if (sub === 'cal') renderCal(); else renderGoals(); }));
+
+    // Keep the calendar FAB in sync when switching main tabs (it's fixed-position
+    // and outside the tab pages, so it must be hidden when leaving Goals).
+    window.addEventListener('tab-changed', updateCalFab);
 
     // Whoop sleep auto-sync
     window.addEventListener('whoop-health-updated', syncWhoopSleep);

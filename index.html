@@ -888,6 +888,23 @@
 #page-tasks .tasks-day-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 #page-tasks .tasks-day-label{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--text-tertiary)}
 #page-tasks .tasks-new-btn{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--success);background:transparent;border:1px solid rgba(107,227,164,.3);border-radius:999px;padding:4px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* Multi-select */
+#page-tasks .tasks-day-actions{display:flex;align-items:center;gap:8px}
+#page-tasks .tasks-select-btn{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--text-secondary);background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:4px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s,color .15s,border-color .15s}
+#page-tasks .tasks-select-btn.active{color:var(--text-primary);border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.08)}
+#page-tasks .tasks-select-bar{display:none;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;margin-bottom:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px}
+#page-tasks .tasks-select-bar.show{display:flex}
+#page-tasks .tasks-select-count{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-secondary);white-space:nowrap}
+#page-tasks .tasks-select-bar-actions{display:flex;align-items:center;gap:6px}
+#page-tasks .tasks-select-action{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-secondary);background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:4px 11px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s}
+#page-tasks .tasks-select-action:active{background:rgba(255,255,255,.08)}
+#page-tasks .tasks-select-del{color:var(--danger);border-color:rgba(226,93,122,.4)}
+#page-tasks .tasks-select-del:active{background:rgba(226,93,122,.12)}
+#page-tasks .tasks-select-del:disabled{opacity:.4;cursor:default}
+#page-tasks #goalList.select-mode .tasks-drag{visibility:hidden}
+#page-tasks .tasks-row.selected{background:rgba(107,227,164,.12)}
+#page-tasks .tasks-row.selected .tasks-chk{background:var(--success);border-color:var(--success)}
+#page-tasks .tasks-row.selected .tasks-chkicon{display:block;color:#050506}
 /* Spine blocks */
 #page-tasks .tasks-block{display:grid;grid-template-columns:40px 1fr;column-gap:12px;margin-bottom:20px}
 #page-tasks .tasks-rail{display:flex;flex-direction:column;align-items:center;padding-top:4px}
@@ -1084,7 +1101,19 @@
 
       <div class="tasks-day-hdr">
         <span class="tasks-day-label" id="tasksDayLabel">↓ TODAY</span>
-        <button class="tasks-new-btn" id="tasksNewBtn">+ Task</button>
+        <div class="tasks-day-actions">
+          <button class="tasks-select-btn" id="tasksSelectBtn">Select</button>
+          <button class="tasks-new-btn" id="tasksNewBtn">+ Task</button>
+        </div>
+      </div>
+
+      <div class="tasks-select-bar" id="tasksSelectBar">
+        <span class="tasks-select-count" id="tasksSelectCount">0 selected</span>
+        <div class="tasks-select-bar-actions">
+          <button class="tasks-select-action" id="tasksSelectAll">Select all</button>
+          <button class="tasks-select-action tasks-select-del" id="tasksSelectDel" disabled>Delete</button>
+          <button class="tasks-select-action" id="tasksSelectCancel">Cancel</button>
+        </div>
       </div>
 
       <div id="goalList">
@@ -1225,654 +1254,6 @@
   </div>
 </div>
 
-<script>
-(function(){
-  'use strict';
-  var DOMAIN_VAR={work:'--accent-work',gym:'--accent-gym',life:'--accent-life',home:'--accent-home',money:'--accent-money',habit:'--accent-habit',sleep:'--accent-sleep'};
-  var DOMAIN_LABEL={work:'WORK',gym:'GYM',life:'LIFE',home:'HOME',money:'MONEY',habit:'HABIT',sleep:'SLEEP'};
-  var EFFORT_LABEL=['','Light','Medium','Deep'];
-  var BLOCK_ORDER={morning:0,midday:1,evening:2};
-  var TOMORROW_KEY='goals:tomorrow';
-  var HABITS_KEY='habits';
-  var FOCUS_KEY='focus:current';
-  var INBOX_KEY='inbox';
-  var REVIEW_KEY='goals:review';
-  var RESET_KEY='daily:lastReset';
-
-  var activeProject=null;
-  var focusTaskId=null;
-  var sheetDomain='work',sheetBlock='morning',sheetEffort=1;
-
-  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-  function $(id){return document.getElementById(id);}
-  function domainColor(d){return 'var('+(DOMAIN_VAR[d]||'--accent-work')+')';}
-
-  function todayKey(){
-    var d=new Date();
-    return 'goals:'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  }
-  function getTodayGoals(){return (typeof storeGet==='function'?storeGet(todayKey()):null)||[];}
-  function saveTodayGoals(g){if(typeof storeSet==='function') storeSet(todayKey(),g);}
-  function newId(){return 'g'+Date.now()+'_'+Math.random().toString(36).slice(2,7);}
-  function getTomorrow(){return (typeof storeGet==='function'?storeGet(TOMORROW_KEY):null)||[];}
-  function saveTomorrow(a){if(typeof storeSet==='function') storeSet(TOMORROW_KEY,a);}
-  function getHabits(){return (typeof storeGet==='function'?storeGet(HABITS_KEY):null)||[];}
-  function saveHabits(a){if(typeof storeSet==='function') storeSet(HABITS_KEY,a);}
-  function getInbox(){return (typeof storeGet==='function'?storeGet(INBOX_KEY):null)||[];}
-  function saveInbox(a){if(typeof storeSet==='function') storeSet(INBOX_KEY,a);}
-  function getReview(){return (typeof storeGet==='function'?storeGet(REVIEW_KEY):null)||[];}
-  function saveReview(a){if(typeof storeSet==='function') storeSet(REVIEW_KEY,a);}
-  function yesterdayKey(){var d=new Date();d.setDate(d.getDate()-1);return 'goals:'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-  function checkDailyReset(){
-    var todayStr=todayKey().replace('goals:','');
-    var lastReset=localStorage.getItem(RESET_KEY);
-    if(lastReset===todayStr) return;
-    var yKey=yesterdayKey();
-    var yGoals=(typeof storeGet==='function'?storeGet(yKey):null)||[];
-    if(yGoals.length){
-      var review=getReview();
-      var existingIds=new Set(review.map(function(r){return r.id;}));
-      yGoals.forEach(function(g){
-        if(!existingIds.has(g.id)){
-          review.push(Object.assign({},g,{reviewDate:yKey.replace('goals:','')}));
-        }
-      });
-      saveReview(review);
-    }
-    localStorage.setItem(RESET_KEY,todayStr);
-  }
-
-  // Ring
-  var CIRC20=2*Math.PI*20;
-  function updateRing(goals){
-    var done=(goals||[]).filter(function(g){return g.done;}).length;
-    var total=(goals||[]).length;
-    var fill=$('tasksRingFill'),lbl=$('tasksRingLabel');
-    if(fill) fill.style.strokeDashoffset=CIRC20*(1-(total?done/total:0));
-    if(lbl) lbl.textContent=done+'/'+total;
-  }
-
-  function updateDateLine(){
-    var el=$('tasksDateLine');
-    if(!el) return;
-    var DAYS=['SUN','MON','TUE','WED','THU','FRI','SAT'];
-    var MONTHS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-    var d=new Date(),h=d.getHours(),m=d.getMinutes();
-    var hh=h%12||12,ampm=h>=12?'PM':'AM';
-    el.textContent=DAYS[d.getDay()]+' · '+MONTHS[d.getMonth()]+' '+d.getDate()+' · '+hh+':'+(m<10?'0':'')+m+' '+ampm;
-  }
-
-  function makeRow(goal){
-    var dc=domainColor(goal.domain);
-    var row=document.createElement('div');
-    row.className='tasks-row'+(goal.done?' done':'');
-    row.style.setProperty('--dc',dc);
-    row.dataset.id=goal.id;
-    row.dataset.project=goal.project||'';
-    if(activeProject&&goal.project!==activeProject) row.style.display='none';
-    row.innerHTML=
-      '<div class="tasks-drag">'
-      +'<svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor">'
-      +'<circle cx="2" cy="2" r="1.1"/><circle cx="6" cy="2" r="1.1"/>'
-      +'<circle cx="2" cy="6" r="1.1"/><circle cx="6" cy="6" r="1.1"/>'
-      +'<circle cx="2" cy="10" r="1.1"/><circle cx="6" cy="10" r="1.1"/>'
-      +'</svg></div>'
-      +'<div class="tasks-chkwrap"><div class="tasks-chk">'
-      +'<svg class="tasks-chkicon" width="10" height="8" viewBox="0 0 10 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
-      +'<polyline points="1,4 3.5,6.5 9,1"/></svg></div></div>'
-      +'<div class="tasks-row-body">'
-      +'<span class="tasks-row-name">'+esc(goal.text||goal.name||'')+'</span>'
-      +'<span class="tasks-row-meta">'+(DOMAIN_LABEL[goal.domain]||'')+(goal.effort?' · '+(EFFORT_LABEL[goal.effort]||''):'')+'</span>'
-      +'</div>'
-      +'<span class="tasks-row-dur">'+(goal.durationMin?goal.durationMin+'m':'')+'</span>';
-    row.querySelector('.tasks-chkwrap').addEventListener('click',function(e){
-      e.stopPropagation();
-      goal.done=!goal.done;
-      row.classList.toggle('done',goal.done);
-      var goals=getTodayGoals();
-      var idx=goals.findIndex(function(g){return g.id===goal.id;});
-      if(idx>=0){goals[idx].done=goal.done;saveTodayGoals(goals);}
-      updateRing(getTodayGoals());
-    });
-    row.querySelector('.tasks-row-body').addEventListener('click',function(e){
-      e.stopPropagation();
-      openSheet(goal);
-    });
-    initDrag(row.querySelector('.tasks-drag'),row);
-    return row;
-  }
-
-  function renderSpine(){
-    var goals=getTodayGoals();
-    if(goals.some(function(g){return !g.id;})){
-      goals=goals.map(function(g){return g.id?g:Object.assign({},g,{id:newId()});});
-      saveTodayGoals(goals);
-      return;
-    }
-    ['morning','midday','evening'].forEach(function(block){
-      var el=$('pt-list-'+block);
-      if(!el) return;
-      el.innerHTML='';
-      goals.filter(function(g){return (g.block||'morning')===block;}).forEach(function(g){el.appendChild(makeRow(g));});
-    });
-    rebuildChips(goals);
-    updateDayLabel(goals);
-    updateRing(goals);
-    renderDoNext(goals);
-  }
-  window.renderTasksSpine=renderSpine;
-
-  function updateDayLabel(goals){
-    var undone=(goals||[]).filter(function(g){return !g.done;});
-    var mins=undone.reduce(function(a,g){return a+(g.durationMin||0);},0);
-    var h=Math.floor(mins/60),m=mins%60;
-    var ts=h?(h+'h'+(m?' '+m+'m':'')):(m?m+'m':'');
-    var lbl=$('tasksDayLabel');
-    if(lbl) lbl.textContent='↓ TODAY · '+undone.length+' LEFT'+(ts?' · ~'+ts:'');
-  }
-
-  function rebuildChips(goals){
-    var chipsEl=$('tasksChips');
-    if(!chipsEl) return;
-    var clearBtn=$('tasksChipClear');
-    Array.from(chipsEl.querySelectorAll('.tasks-chip')).forEach(function(c){c.remove();});
-    var projects={};
-    (goals||[]).forEach(function(g){
-      if(g.project){
-        if(!projects[g.project]) projects[g.project]={count:0,domain:g.domain||'work'};
-        projects[g.project].count++;
-      }
-    });
-    var keys=Object.keys(projects).sort();
-    keys.forEach(function(pid){
-      var info=projects[pid];
-      var chip=document.createElement('button');
-      chip.className='tasks-chip'+(activeProject===pid?' active':'');
-      chip.dataset.project=pid;
-      chip.style.color=domainColor(info.domain);
-      chip.innerHTML='<span class="cn">'+esc(pid.replace(/-/g,' '))+'</span><span class="ck"> '+info.count+'</span>';
-      chip.addEventListener('click',function(){activeProject=(activeProject===pid?null:pid);renderSpine();});
-      chipsEl.insertBefore(chip,clearBtn);
-    });
-    var ac=$('tasksActiveCount');
-    if(ac) ac.textContent=keys.length?keys.length+' LISTS':'';
-    if(clearBtn){clearBtn.classList.toggle('show',!!activeProject);clearBtn.onclick=function(){activeProject=null;renderSpine();};}
-  }
-
-  // Energy banner
-  function renderEnergyBanner(){
-    var connected=(typeof whoopConnected!=='undefined'&&whoopConnected);
-    var arcEl=$('tasksEnergyArc'),scoreEl=$('tasksEnergyScore'),labelEl=$('tasksEnergyLabel'),lineEl=$('tasksEnergyLine'),barEl=$('tasksEnergyBar');
-    if(!connected||typeof whoopCache==='undefined'||!whoopCache||!whoopCache.recovery){
-      if(scoreEl){scoreEl.textContent='—';scoreEl.style.color='var(--text-tertiary)';}
-      if(labelEl) labelEl.textContent='ENERGY';
-      if(lineEl) lineEl.textContent='Connect Whoop';
-      if(arcEl){arcEl.style.strokeDashoffset=String(2*Math.PI*21);arcEl.style.stroke='rgba(255,255,255,0.08)';}
-      if(barEl) barEl.innerHTML='<div class="tasks-energy-seg" style="background:rgba(255,255,255,.1);flex:1 0 0;border-radius:2px"></div>';
-      return;
-    }
-    var rec=whoopCache.recovery;
-    var score=(rec.score&&rec.score.recovery_score!=null)?rec.score.recovery_score:0;
-    var hrv=(rec.score&&rec.score.hrv_rmssd_milli!=null)?Math.round(rec.score.hrv_rmssd_milli):null;
-    var CIRC21=2*Math.PI*21;
-    if(scoreEl) scoreEl.textContent=Math.round(score);
-    if(arcEl){
-      arcEl.style.strokeDashoffset=CIRC21*(1-score/100);
-      var color=typeof recoveryColor==='function'?recoveryColor(score):'var(--success)';
-      arcEl.style.stroke=color;
-      if(scoreEl) scoreEl.style.color=color;
-    }
-    var state=score>=67?'PRIMED FOR DEEP':score>=34?'STEADY':'RECOVERY DAY';
-    var headline=score>=67?'Front-load hard work':score>=34?'Balance focus & rest':'Take it easy today';
-    if(labelEl) labelEl.textContent='WHOOP · '+state;
-    if(lineEl) lineEl.textContent=headline+(hrv?' · HRV '+hrv+'ms':'');
-    if(barEl){
-      var deep=Math.round(score*0.5),steady=Math.round(score*0.35),rest=100-deep-steady;
-      barEl.innerHTML='<div class="tasks-energy-seg" style="background:var(--success);flex:'+deep+' 0 0;border-radius:2px 0 0 2px"></div>'
-        +'<div class="tasks-energy-seg" style="background:var(--warning);flex:'+steady+' 0 0"></div>'
-        +'<div class="tasks-energy-seg" style="background:var(--accent-work);flex:'+rest+' 0 0;border-radius:0 2px 2px 0"></div>';
-    }
-  }
-  window.renderEnergyBanner=renderEnergyBanner;
-
-  function renderDoNext(goals){
-    var undone=(goals||[]).filter(function(g){return !g.done;});
-    var nameEl=$('tasksDoNextName'),metaEl=$('tasksDoNextMeta'),pickBtn=$('tasksPickBtn');
-    if(!undone.length){
-      if(nameEl) nameEl.textContent='All done!';
-      if(metaEl) metaEl.textContent='';
-      if(pickBtn) pickBtn.style.display='none';
-      focusTaskId=null;
-      renderPickList([]);
-      return;
-    }
-    if(pickBtn) pickBtn.style.display='';
-    var pinned=focusTaskId&&undone.find(function(g){return g.id===focusTaskId;});
-    var pick=pinned||undone.find(function(g){return g.effort===3;})||undone[0];
-    focusTaskId=pick.id;
-    if(nameEl) nameEl.textContent=pick.text||pick.name||'';
-    var parts=[];
-    if(DOMAIN_LABEL[pick.domain]) parts.push(DOMAIN_LABEL[pick.domain]);
-    if(pick.effort) parts.push(EFFORT_LABEL[pick.effort]||'');
-    if(pick.durationMin) parts.push(pick.durationMin+'M');
-    if(metaEl) metaEl.textContent=parts.join(' · ');
-    var btn=$('tasksPlayBtn');
-    if(btn) btn.style.borderColor=domainColor(pick.domain);
-    renderPickList(undone);
-  }
-
-  function renderPickList(undone){
-    var list=$('tasksPickList');
-    if(!list) return;
-    list.innerHTML='';
-    (undone||[]).forEach(function(g){
-      var isSelected=g.id===focusTaskId;
-      var opt=document.createElement('div');
-      opt.className='tasks-pick-option'+(isSelected?' selected':'');
-      opt.innerHTML='<div class="tasks-pick-dot" style="background:'+domainColor(g.domain)+'"></div>'
-        +'<span class="tasks-pick-name'+(isSelected?' selected':'')+'" title="'+esc(g.text||g.name||'')+'">'+esc(g.text||g.name||'')+'</span>'
-        +'<span class="tasks-pick-badge">'+(g.block||'').toUpperCase()+'</span>';
-      opt.addEventListener('click',function(e){
-        e.stopPropagation();
-        focusTaskId=g.id;
-        var pl=$('tasksPickList');
-        if(pl) pl.classList.remove('open');
-        renderDoNext(getTodayGoals());
-      });
-      list.appendChild(opt);
-    });
-  }
-
-  $('tasksPickBtn')&&$('tasksPickBtn').addEventListener('click',function(e){
-    e.stopPropagation();
-    var list=$('tasksPickList');
-    if(list) list.classList.toggle('open');
-  });
-  document.addEventListener('click',function(e){
-    var list=$('tasksPickList');
-    if(list&&list.classList.contains('open')&&!list.contains(e.target)) list.classList.remove('open');
-  });
-
-  // Inbox
-  function renderInboxCard(){
-    var inbox=getInbox();
-    var preview=$('tasksInboxPreview'),lbl=$('tasksInboxLabel');
-    if(!preview) return;
-    var unfiled=Array.isArray(inbox)?inbox.filter(function(i){return !i.filed;}):(inbox||[]);
-    var texts=unfiled.slice(0,4).map(function(i){return i.text||i;}).join(' · ');
-    preview.textContent=texts||'No items';
-    if(lbl) lbl.textContent='INBOX'+(unfiled.length?' · '+unfiled.length+' UNFILED':'');
-    renderInboxTray();
-  }
-  window.renderInboxCard=renderInboxCard;
-
-  function renderInboxTray(){
-    var tray=$('inboxTray');
-    if(!tray) return;
-    var inbox=getInbox();
-    var unfiled=Array.isArray(inbox)?inbox.filter(function(i){return !i.filed;}):(inbox||[]);
-    tray.innerHTML='';
-    if(!unfiled.length){
-      tray.innerHTML='<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:4px 0">All filed</div>';
-      return;
-    }
-    unfiled.forEach(function(item){
-      var el=document.createElement('div');
-      el.className='tasks-inbox-item';
-      el.innerHTML='<span class="tasks-inbox-item-text">'+esc(item.text||item)+'</span>'
-        +'<button class="tasks-inbox-file-btn">File</button>'
-        +'<button class="tasks-inbox-del-btn" aria-label="Delete">×</button>';
-      el.querySelector('.tasks-inbox-file-btn').addEventListener('click',function(e){
-        e.stopPropagation();
-        var all=getInbox();
-        var idx=all.findIndex(function(x){return x.id===item.id;});
-        if(idx>=0){all.splice(idx,1);saveInbox(all);}
-        renderInboxCard();
-        openSheet(null);
-        var ni=$('tasksSheetName');
-        if(ni) ni.value=item.text||'';
-      });
-      el.querySelector('.tasks-inbox-del-btn').addEventListener('click',function(e){
-        e.stopPropagation();
-        var all=getInbox();
-        var idx=all.findIndex(function(x){return x.id===item.id;});
-        if(idx>=0){all.splice(idx,1);saveInbox(all);}
-        renderInboxCard();
-      });
-      tray.appendChild(el);
-    });
-  }
-
-  function showInboxInput(){
-    var row=$('inboxInputRow'),inp=$('inboxInput');
-    if(!row) return;
-    row.classList.add('show');
-    if(inp) setTimeout(function(){inp.focus();},60);
-  }
-  function hideInboxInput(){
-    var row=$('inboxInputRow'),inp=$('inboxInput');
-    if(row) row.classList.remove('show');
-    if(inp) inp.value='';
-  }
-  function addInboxItem(){
-    var inp=$('inboxInput');
-    if(!inp||!inp.value.trim()) return;
-    var inbox=getInbox();
-    inbox.push({id:'i'+Date.now(),text:inp.value.trim(),filed:false,created:new Date().toISOString()});
-    saveInbox(inbox);
-    inp.value='';
-    renderInboxCard();
-    var tray=$('inboxTray');
-    if(tray) tray.classList.add('show');
-  }
-
-  $('tasksInboxAdd')&&$('tasksInboxAdd').addEventListener('click',function(e){
-    e.stopPropagation();
-    var row=$('inboxInputRow');
-    if(row&&row.classList.contains('show')){hideInboxInput();}else{showInboxInput();}
-  });
-  $('inboxSubmit')&&$('inboxSubmit').addEventListener('click',addInboxItem);
-  $('inboxInput')&&$('inboxInput').addEventListener('keydown',function(e){
-    if(e.key==='Enter'){e.preventDefault();addInboxItem();}
-    if(e.key==='Escape'){hideInboxInput();}
-  });
-  $('tasksInboxPreview')&&$('tasksInboxPreview').addEventListener('click',function(){
-    var tray=$('inboxTray');
-    if(!tray) return;
-    var inbox=getInbox();
-    var unfiled=Array.isArray(inbox)?inbox.filter(function(i){return !i.filed;}):(inbox||[]);
-    if(!unfiled.length) return;
-    tray.classList.toggle('show');
-  });
-  window.addEventListener('inbox-changed',function(){renderInboxCard();});
-
-  // Daily review
-  function renderReview(){
-    var section=$('reviewSection'),list=$('reviewList'),cnt=$('reviewCount');
-    if(!section||!list) return;
-    var items=getReview();
-    if(!items.length){section.style.display='none';return;}
-    section.style.display='';
-    if(cnt) cnt.textContent='('+items.length+')';
-    list.innerHTML='';
-    items.forEach(function(item){
-      var li=document.createElement('li');
-      li.className='tasks-review-item'+(item.done?' done':'');
-      var dc=domainColor(item.domain);
-      li.innerHTML='<div class="tasks-review-dot" style="background:'+dc+'"></div>'
-        +'<div class="tasks-review-body">'
-        +'<span class="tasks-review-item-name">'+esc(item.text||item.name||'')+'</span>'
-        +'<span class="tasks-review-item-meta">'+(DOMAIN_LABEL[item.domain]||'')+(item.block?' · '+item.block:'')+(item.reviewDate?' · '+item.reviewDate:'')+'</span>'
-        +'</div>'
-        +'<button class="tasks-review-readd">Re-add</button>'
-        +'<button class="tasks-review-del" aria-label="Delete">×</button>';
-      li.querySelector('.tasks-review-readd').addEventListener('click',function(e){
-        e.stopPropagation();
-        var goals=getTodayGoals();
-        goals.push({id:newId(),text:item.text||item.name||'',done:false,domain:item.domain||'work',block:item.block||'morning',effort:item.effort||1,durationMin:item.durationMin||0,project:item.project||''});
-        saveTodayGoals(goals);
-        renderSpine();
-        var review=getReview();
-        var idx=review.findIndex(function(r){return r.id===item.id;});
-        if(idx>=0){review.splice(idx,1);saveReview(review);}
-        renderReview();
-      });
-      li.querySelector('.tasks-review-del').addEventListener('click',function(e){
-        e.stopPropagation();
-        var review=getReview();
-        var idx=review.findIndex(function(r){return r.id===item.id;});
-        if(idx>=0){review.splice(idx,1);saveReview(review);}
-        renderReview();
-      });
-      list.appendChild(li);
-    });
-  }
-  $('reviewClearAll')&&$('reviewClearAll').addEventListener('click',function(){saveReview([]);renderReview();});
-
-  // Tomorrow
-  function renderTomorrow(){
-    var list=$('tomorrowList');
-    if(!list) return;
-    var items=getTomorrow();
-    list.innerHTML='';
-    items.forEach(function(item,i){
-      var li=document.createElement('li');
-      li.className='tasks-list-item'+(item.done?' done':'');
-      li.innerHTML='<div class="tasks-list-chk"></div><span class="item-text">'+esc(item.text||item)+'</span><button class="tasks-list-del">×</button>';
-      li.querySelector('.tasks-list-chk').addEventListener('click',function(){item.done=!item.done;li.classList.toggle('done',item.done);saveTomorrow(items);});
-      li.querySelector('.tasks-list-del').addEventListener('click',function(e){e.stopPropagation();items.splice(i,1);saveTomorrow(items);renderTomorrow();});
-      list.appendChild(li);
-    });
-    var cnt=$('gmTomorrowCount');
-    if(cnt) cnt.textContent=items.length?'('+items.length+')':'';
-  }
-  function addTomorrow(){
-    var inp=$('tomorrowInput');
-    if(!inp||!inp.value.trim()) return;
-    var items=getTomorrow();
-    items.push({id:'t'+Date.now(),text:inp.value.trim(),done:false});
-    saveTomorrow(items);inp.value='';renderTomorrow();
-  }
-  $('tomorrowAddBtn')&&$('tomorrowAddBtn').addEventListener('click',addTomorrow);
-  $('tomorrowInput')&&$('tomorrowInput').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addTomorrow();}});
-
-  // Habits — monthly progress view
-  function habitDateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-  function getHabitLog(ds){return (typeof storeGet==='function'?storeGet('habit-log:'+ds):null)||[];}
-  function saveHabitLog(ds,ids){if(typeof storeSet==='function') storeSet('habit-log:'+ds,ids);}
-
-  function renderHabits(){
-    var container=$('habitMonthContainer');
-    if(!container) return;
-    var habits=getHabits();
-    var now=new Date();
-    var year=now.getFullYear(),month=now.getMonth(),today=now.getDate();
-    var daysInMonth=new Date(year,month+1,0).getDate();
-    container.innerHTML='';
-    if(!habits.length){
-      container.innerHTML='<div style="font-size:13px;color:var(--text-tertiary);padding:4px 0">No habits yet — add one below.</div>';
-      return;
-    }
-    habits.forEach(function(habit){
-      var row=document.createElement('div');
-      row.className='tasks-habit-month-row';
-      var nameEl=document.createElement('div');
-      nameEl.className='tasks-habit-name';
-      nameEl.textContent=habit.text||habit;
-      row.appendChild(nameEl);
-      var dotsEl=document.createElement('div');
-      dotsEl.className='tasks-habit-dots';
-      for(var d=1;d<=daysInMonth;d++){
-        var ds=year+'-'+String(month+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-        var log=getHabitLog(ds);
-        var done=log.indexOf(habit.id)>=0;
-        var isFuture=d>today;
-        var isToday=d===today;
-        var dot=document.createElement('div');
-        dot.className='tasks-habit-dot'+(done?' done':'')+(isFuture?' future':'')+(isToday?' today':'');
-        dot.title=(isToday?'Today — ':'')+ds;
-        if(isToday){
-          (function(hid,dstr){
-            dot.addEventListener('click',function(){
-              var log=getHabitLog(dstr);
-              var idx=log.indexOf(hid);
-              if(idx>=0) log.splice(idx,1); else log.push(hid);
-              saveHabitLog(dstr,log);
-              renderHabits();
-            });
-          })(habit.id,ds);
-        }
-        dotsEl.appendChild(dot);
-      }
-      row.appendChild(dotsEl);
-      container.appendChild(row);
-    });
-  }
-
-  function addHabit(){
-    var inp=$('habitInput');
-    if(!inp||!inp.value.trim()) return;
-    var items=getHabits();
-    items.push({id:'h'+Date.now(),text:inp.value.trim()});
-    saveHabits(items);inp.value='';renderHabits();
-  }
-  $('habitAddBtn')&&$('habitAddBtn').addEventListener('click',addHabit);
-  $('habitInput')&&$('habitInput').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addHabit();}});
-
-  // Quick add
-  function quickAdd(){
-    var inp=$('tasksQuickInput');
-    if(!inp||!inp.value.trim()) return;
-    var goals=getTodayGoals();
-    var h=new Date().getHours();
-    var block=h<12?'morning':h<17?'midday':'evening';
-    goals.push({id:newId(),text:inp.value.trim(),done:false,domain:'work',block:block,effort:1,durationMin:0,project:''});
-    saveTodayGoals(goals);inp.value='';renderSpine();
-  }
-  $('tasksQuickSubmit')&&$('tasksQuickSubmit').addEventListener('click',quickAdd);
-  $('tasksQuickInput')&&$('tasksQuickInput').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();quickAdd();}});
-
-  // Sheet
-  function openSheet(goal){
-    var sheet=$('tasksSheet');
-    if(!sheet) return;
-    $('tasksSheetId').value=goal?goal.id:'';
-    $('tasksSheetTitle').textContent=goal?'Edit Task':'New Task';
-    $('tasksSheetName').value=goal?(goal.text||goal.name||''):'';
-    $('tasksSheetDur').value=goal?(goal.durationMin||''):'';
-    $('tasksSheetProject').value=goal?(goal.project||''):'';
-    sheetDomain=goal?(goal.domain||'work'):'work';
-    sheetBlock=goal?(goal.block||'morning'):'morning';
-    sheetEffort=goal?(goal.effort||1):1;
-    var delBtn=$('tasksSheetDelete');
-    if(delBtn) delBtn.style.display=goal?'block':'none';
-    refreshSheet();
-    sheet.classList.add('open');
-    setTimeout(function(){$('tasksSheetName')&&$('tasksSheetName').focus();},60);
-  }
-  function closeSheet(){var s=$('tasksSheet');if(s) s.classList.remove('open');}
-  function refreshSheet(){
-    document.querySelectorAll('#tasksSheetDomainBtns .tasks-domain-btn').forEach(function(b){b.classList.toggle('active',b.dataset.domain===sheetDomain);});
-    document.querySelectorAll('#tasksSheetBlockBtns .tasks-block-btn').forEach(function(b){b.classList.toggle('active',b.dataset.block===sheetBlock);});
-    document.querySelectorAll('#tasksSheetEffortBtns .tasks-effort-btn').forEach(function(b){b.classList.toggle('active',+b.dataset.effort===sheetEffort);});
-  }
-  function saveSheet(){
-    var name=($('tasksSheetName')?$('tasksSheetName').value:'').trim();
-    if(!name){$('tasksSheetName')&&$('tasksSheetName').focus();return;}
-    var id=$('tasksSheetId')?$('tasksSheetId').value:'';
-    var dur=parseInt($('tasksSheetDur')?$('tasksSheetDur').value:0,10)||0;
-    var proj=($('tasksSheetProject')?$('tasksSheetProject').value:'').trim();
-    var goals=getTodayGoals();
-    if(id){
-      var idx=goals.findIndex(function(g){return g.id===id;});
-      if(idx>=0) Object.assign(goals[idx],{text:name,domain:sheetDomain,block:sheetBlock,effort:sheetEffort,durationMin:dur,project:proj});
-    } else {
-      goals.push({id:newId(),text:name,done:false,domain:sheetDomain,block:sheetBlock,effort:sheetEffort,durationMin:dur,project:proj});
-    }
-    saveTodayGoals(goals);closeSheet();renderSpine();
-  }
-  $('tasksSheetSave')&&$('tasksSheetSave').addEventListener('click',saveSheet);
-  $('tasksSheetDelete')&&$('tasksSheetDelete').addEventListener('click',function(){
-    var id=$('tasksSheetId')?$('tasksSheetId').value:'';
-    if(!id) return;
-    saveTodayGoals(getTodayGoals().filter(function(g){return g.id!==id;}));
-    closeSheet();renderSpine();
-  });
-  $('tasksSheet')&&$('tasksSheet').addEventListener('click',function(e){if(e.target===$('tasksSheet')) closeSheet();});
-  $('tasksSheetClose')&&$('tasksSheetClose').addEventListener('click',closeSheet);
-  document.querySelectorAll('#tasksSheetDomainBtns .tasks-domain-btn').forEach(function(b){b.addEventListener('click',function(){sheetDomain=b.dataset.domain;refreshSheet();});});
-  document.querySelectorAll('#tasksSheetBlockBtns .tasks-block-btn').forEach(function(b){b.addEventListener('click',function(){sheetBlock=b.dataset.block;refreshSheet();});});
-  document.querySelectorAll('#tasksSheetEffortBtns .tasks-effort-btn').forEach(function(b){b.addEventListener('click',function(){sheetEffort=+b.dataset.effort;refreshSheet();});});
-  $('tasksNewBtn')&&$('tasksNewBtn').addEventListener('click',function(){openSheet(null);});
-
-  // Keyboard shortcuts
-  document.addEventListener('keydown',function(e){
-    if(e.key==='Escape'){var s=$('tasksSheet');if(s&&s.classList.contains('open')){closeSheet();return;}}
-    var active=document.querySelector('.tab-page.active');
-    if(!active||active.id!=='page-tasks') return;
-    if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')) return;
-    if(e.key==='n'){e.preventDefault();openSheet(null);}
-    if(e.key===' '&&!e.shiftKey){e.preventDefault();var btn=$('tasksPlayBtn');if(btn) btn.click();}
-  });
-
-  // Drag to reorder
-  function initDrag(handle,row){
-    if(!handle) return;
-    handle.addEventListener('pointerdown',function(e){
-      e.preventDefault();
-      var list=row.parentElement;
-      if(!list) return;
-      handle.setPointerCapture(e.pointerId);
-      var allRows=Array.from(list.querySelectorAll('.tasks-row'));
-      var origIdx=allRows.indexOf(row);
-      var rowH=row.getBoundingClientRect().height||48;
-      var curIdx=origIdx;
-      row.style.opacity='0.45';row.style.transition='none';
-      function onMove(ev){
-        var dy=ev.clientY-e.clientY;
-        var ni=Math.max(0,Math.min(allRows.length-1,origIdx+Math.round(dy/rowH)));
-        if(ni!==curIdx){
-          curIdx=ni;
-          var siblings=Array.from(list.querySelectorAll('.tasks-row'));
-          list.removeChild(row);
-          var ref=siblings.filter(function(s){return s!==row;})[ni];
-          if(ref) list.insertBefore(row,ref);else list.appendChild(row);
-        }
-      }
-      function onUp(){
-        row.style.opacity='';row.style.transition='';
-        var blockId=list.id==='pt-list-morning'?'morning':list.id==='pt-list-midday'?'midday':'evening';
-        var newOrder=Array.from(list.querySelectorAll('.tasks-row')).map(function(r){return r.dataset.id;});
-        var goals=getTodayGoals();
-        var blockGoals=newOrder.map(function(id){return goals.find(function(g){return g.id===id;});}).filter(Boolean);
-        var other=goals.filter(function(g){return g.block!==blockId;});
-        saveTodayGoals(blockGoals.concat(other).sort(function(a,b){return (BLOCK_ORDER[a.block||'morning']||0)-(BLOCK_ORDER[b.block||'morning']||0);}));
-        handle.removeEventListener('pointermove',onMove);
-        handle.removeEventListener('pointerup',onUp);
-      }
-      handle.addEventListener('pointermove',onMove);
-      handle.addEventListener('pointerup',onUp);
-    });
-  }
-
-  // Focus timer
-  var timerRunning=false,timerInterval=null;
-  function fmtTime(ms){var s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
-  function timerTick(){var t=parseInt(localStorage.getItem(FOCUS_KEY),10),el=$('tasksElapsed');if(t&&el) el.textContent=fmtTime(Date.now()-t);}
-  function startTimer(){
-    localStorage.setItem(FOCUS_KEY,String(Date.now()));timerRunning=true;
-    var pi=$('tasksPlayIcon'),si=$('tasksStopIcon'),btn=$('tasksPlayBtn');
-    if(pi) pi.style.display='none';if(si) si.style.display='block';if(btn) btn.classList.add('running');
-    timerInterval=setInterval(timerTick,1000);timerTick();
-  }
-  function stopTimer(){
-    localStorage.removeItem(FOCUS_KEY);timerRunning=false;clearInterval(timerInterval);timerInterval=null;
-    var pi=$('tasksPlayIcon'),si=$('tasksStopIcon'),btn=$('tasksPlayBtn'),el=$('tasksElapsed');
-    if(pi) pi.style.display='block';if(si) si.style.display='none';if(btn) btn.classList.remove('running');if(el) el.textContent='';
-  }
-  $('tasksPlayBtn')&&$('tasksPlayBtn').addEventListener('click',function(e){e.stopPropagation();timerRunning?stopTimer():startTimer();});
-  if(localStorage.getItem(FOCUS_KEY)){
-    timerRunning=true;
-    var _pi=$('tasksPlayIcon'),_si=$('tasksStopIcon'),_btn=$('tasksPlayBtn');
-    if(_pi) _pi.style.display='none';if(_si) _si.style.display='block';if(_btn) _btn.classList.add('running');
-    timerInterval=setInterval(timerTick,1000);timerTick();
-  }
-
-  window.addEventListener('goals-changed',function(){renderSpine();});
-
-  // Init
-  updateDateLine();
-  setInterval(updateDateLine,60000);
-  checkDailyReset();
-  renderSpine();
-  renderTomorrow();
-  renderHabits();
-  renderInboxCard();
-  renderReview();
-  renderEnergyBanner();
-
-})();
-</script>
 
 </div>
 <div class="tab-page" id="page-goals">
@@ -2936,6 +2317,18 @@
     <div class="fin-nw-accounts" id="finNwAccounts"></div>
   </div>
 
+  <!-- Wishlist -->
+  <div class="fin-sec-hdr">
+    <span class="fin-sec-title">Wishlist</span>
+    <button class="fin-sec-action" id="finWishAddBtn">+ Add</button>
+  </div>
+  <div class="fin-wish-legend">
+    <span><i class="fin-wish-dot safe"></i>≤1% net worth</span>
+    <span><i class="fin-wish-dot warning"></i>≤5%</span>
+    <span><i class="fin-wish-dot danger"></i>above</span>
+  </div>
+  <div id="finWishList"></div>
+
   <!-- Transactions -->
   <div class="fin-sec-hdr">
     <span class="fin-sec-title" id="finSectionTitle">Transactions</span>
@@ -3090,6 +2483,36 @@
       <button class="fin-modal-del" id="finSubDelete" style="display:none;">Delete</button>
       <button class="fin-modal-cancel" id="finSubCancel">Cancel</button>
       <button class="fin-modal-save" id="finSubSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add / edit wishlist item modal -->
+<div class="fin-modal hidden" id="finWishModal">
+  <div class="fin-modal-bg" id="finWishModalBg"></div>
+  <div class="fin-modal-box">
+    <div class="fin-modal-title" id="finWishModalTitle">Add to wishlist</div>
+    <label class="fin-modal-lbl">Item</label>
+    <input type="text" id="finWishName" class="fin-input fin-mb" placeholder="e.g. AirPods Pro, PS5, Holiday">
+    <div class="fin-modal-row fin-mb">
+      <div style="flex:1.4;">
+        <label class="fin-modal-lbl">Price</label>
+        <input type="number" id="finWishPrice" class="fin-input" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div style="flex:0 0 96px;">
+        <label class="fin-modal-lbl">Currency</label>
+        <div class="fin-seg" id="finWishCur">
+          <button class="fin-seg-btn active" data-cur="EUR">€</button>
+          <button class="fin-seg-btn" data-cur="GBP">£</button>
+        </div>
+      </div>
+    </div>
+    <div class="fin-wish-hint" id="finWishHint"></div>
+    <div class="fin-status" id="finWishStatus"></div>
+    <div class="fin-modal-footer">
+      <button class="fin-modal-del" id="finWishDelete" style="display:none;">Delete</button>
+      <button class="fin-modal-cancel" id="finWishCancel">Cancel</button>
+      <button class="fin-modal-save" id="finWishSave">Save</button>
     </div>
   </div>
 </div>
@@ -3531,6 +2954,7 @@
   var activeProject=null;
   var focusTaskId=null;
   var sheetDomain='work',sheetBlock='morning',sheetEffort=1;
+  var selectMode=false,selectedIds={};
 
   function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function $(id){return document.getElementById(id);}
@@ -3594,7 +3018,7 @@
   function makeRow(goal){
     var dc=domainColor(goal.domain);
     var row=document.createElement('div');
-    row.className='tasks-row'+(goal.done?' done':'');
+    row.className='tasks-row'+(goal.done?' done':'')+(selectMode&&selectedIds[goal.id]?' selected':'');
     row.style.setProperty('--dc',dc);
     row.dataset.id=goal.id;
     row.dataset.project=goal.project||'';
@@ -3614,6 +3038,10 @@
       +'<span class="tasks-row-meta">'+(DOMAIN_LABEL[goal.domain]||'')+(goal.effort?' · '+(EFFORT_LABEL[goal.effort]||''):'')+'</span>'
       +'</div>'
       +'<span class="tasks-row-dur">'+(goal.durationMin?goal.durationMin+'m':'')+'</span>';
+    if(selectMode){
+      row.addEventListener('click',function(e){e.stopPropagation();toggleSelect(goal.id);});
+      return row;
+    }
     row.querySelector('.tasks-chkwrap').addEventListener('click',function(e){
       e.stopPropagation();
       goal.done=!goal.done;
@@ -3650,6 +3078,55 @@
     renderDoNext(goals);
   }
   window.renderTasksSpine=renderSpine;
+
+  // Multi-select + bulk delete
+  function enterSelectMode(){
+    selectMode=true;selectedIds={};
+    var bar=$('tasksSelectBar');if(bar) bar.classList.add('show');
+    var btn=$('tasksSelectBtn');if(btn){btn.classList.add('active');btn.textContent='Done';}
+    var gl=$('goalList');if(gl) gl.classList.add('select-mode');
+    updateSelectBar();renderSpine();
+  }
+  function exitSelectMode(){
+    selectMode=false;selectedIds={};
+    var bar=$('tasksSelectBar');if(bar) bar.classList.remove('show');
+    var btn=$('tasksSelectBtn');if(btn){btn.classList.remove('active');btn.textContent='Select';}
+    var gl=$('goalList');if(gl) gl.classList.remove('select-mode');
+    renderSpine();
+  }
+  function toggleSelect(id){
+    if(selectedIds[id]) delete selectedIds[id];else selectedIds[id]=true;
+    var row=document.querySelector('#goalList .tasks-row[data-id="'+id+'"]');
+    if(row) row.classList.toggle('selected',!!selectedIds[id]);
+    updateSelectBar();
+  }
+  function updateSelectBar(){
+    var n=Object.keys(selectedIds).length;
+    var cnt=$('tasksSelectCount');if(cnt) cnt.textContent=n+' selected';
+    var del=$('tasksSelectDel');if(del) del.disabled=!n;
+  }
+  function selectAllVisible(){
+    var rows=Array.prototype.slice.call(document.querySelectorAll('#goalList .tasks-row'))
+      .filter(function(r){return r.style.display!=='none';});
+    var allSelected=rows.length>0&&rows.every(function(r){return selectedIds[r.dataset.id];});
+    rows.forEach(function(r){
+      if(allSelected){delete selectedIds[r.dataset.id];r.classList.remove('selected');}
+      else{selectedIds[r.dataset.id]=true;r.classList.add('selected');}
+    });
+    updateSelectBar();
+  }
+  function deleteSelected(){
+    var ids=Object.keys(selectedIds);
+    if(!ids.length) return;
+    if(!confirm('Delete '+ids.length+' task'+(ids.length>1?'s':'')+'?')) return;
+    var set={};ids.forEach(function(i){set[i]=true;});
+    saveTodayGoals(getTodayGoals().filter(function(g){return !set[g.id];}));
+    exitSelectMode();
+  }
+  $('tasksSelectBtn')&&$('tasksSelectBtn').addEventListener('click',function(){selectMode?exitSelectMode():enterSelectMode();});
+  $('tasksSelectCancel')&&$('tasksSelectCancel').addEventListener('click',exitSelectMode);
+  $('tasksSelectAll')&&$('tasksSelectAll').addEventListener('click',selectAllVisible);
+  $('tasksSelectDel')&&$('tasksSelectDel').addEventListener('click',deleteSelected);
 
   function updateDayLabel(goals){
     var undone=(goals||[]).filter(function(g){return !g.done;});
@@ -4076,7 +3553,7 @@
 
   // Keyboard shortcuts
   document.addEventListener('keydown',function(e){
-    if(e.key==='Escape'){var s=$('tasksSheet');if(s&&s.classList.contains('open')){closeSheet();return;}}
+    if(e.key==='Escape'){var s=$('tasksSheet');if(s&&s.classList.contains('open')){closeSheet();return;}if(selectMode){exitSelectMode();return;}}
     var active=document.querySelector('.tab-page.active');
     if(!active||active.id!=='page-tasks') return;
     if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')) return;
