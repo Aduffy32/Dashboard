@@ -999,7 +999,10 @@
 #page-tasks .tasks-habit-month{padding:0}
 #page-tasks .tasks-habit-month-row{margin-bottom:12px}
 #page-tasks .tasks-habit-month-row:last-child{margin-bottom:0}
-#page-tasks .tasks-habit-name{font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+#page-tasks .tasks-habit-name{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+#page-tasks .tasks-habit-name-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#page-tasks .tasks-habit-del{flex-shrink:0;width:18px;height:18px;border:none;background:transparent;color:var(--text-tertiary);font-size:15px;line-height:1;cursor:pointer;opacity:.45;padding:0;border-radius:4px;-webkit-tap-highlight-color:transparent;transition:opacity .15s,color .15s}
+#page-tasks .tasks-habit-del:hover,#page-tasks .tasks-habit-del:active{opacity:1;color:var(--danger)}
 #page-tasks .tasks-habit-dots{display:flex;flex-wrap:wrap;gap:3px}
 #page-tasks .tasks-habit-dot{width:13px;height:13px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);flex-shrink:0;transition:background .15s,border-color .15s}
 #page-tasks .tasks-habit-dot.done{background:var(--success);border-color:var(--success)}
@@ -3455,7 +3458,20 @@
       row.className='tasks-habit-month-row';
       var nameEl=document.createElement('div');
       nameEl.className='tasks-habit-name';
-      nameEl.textContent=habit.text||habit;
+      var nameText=document.createElement('span');
+      nameText.className='tasks-habit-name-text';
+      nameText.textContent=habit.text||habit;
+      var delBtn=document.createElement('button');
+      delBtn.className='tasks-habit-del';
+      delBtn.type='button';
+      delBtn.textContent='×';
+      delBtn.title='Remove habit';
+      delBtn.setAttribute('aria-label','Remove habit '+(habit.text||habit));
+      (function(h){
+        delBtn.addEventListener('click',function(e){e.stopPropagation();removeHabit(h);});
+      })(habit);
+      nameEl.appendChild(nameText);
+      nameEl.appendChild(delBtn);
       row.appendChild(nameEl);
       var dotsEl=document.createElement('div');
       dotsEl.className='tasks-habit-dots';
@@ -3492,6 +3508,21 @@
     var items=getHabits();
     items.push({id:'h'+Date.now(),text:inp.value.trim()});
     saveHabits(items);inp.value='';renderHabits();
+  }
+  function removeHabit(habit){
+    if(!habit) return;
+    if(!confirm('Remove habit "'+(habit.text||habit)+'"? Its history will be cleared.')) return;
+    saveHabits(getHabits().filter(function(h){return h.id!==habit.id;}));
+    // Strip this habit's id from every day's log so no orphaned data lingers or syncs.
+    if(typeof storeListKeys==='function'){
+      storeListKeys('habit-log:').forEach(function(key){
+        var ds=key.slice('habit-log:'.length);
+        var log=getHabitLog(ds);
+        var idx=log.indexOf(habit.id);
+        if(idx>=0){log.splice(idx,1);saveHabitLog(ds,log);}
+      });
+    }
+    renderHabits();
   }
   $('habitAddBtn')&&$('habitAddBtn').addEventListener('click',addHabit);
   $('habitInput')&&$('habitInput').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addHabit();}});
