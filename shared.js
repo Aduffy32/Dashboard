@@ -204,6 +204,7 @@ async function loadAllFromSupabase() {
   ]);
   if (goalsRes.data)  goalsRes.data.forEach(r => { cache[`goals:${r.date}`] = r.data; });
   if (streakRes.data) cache['goal_streak_v1'] = streakRes.data.data;
+  const seenAppKeys = new Set((appStateRes.data || []).map(r => r.app_key));
   if (appStateRes.data) {
     appStateRes.data.forEach(({ app_key, payload }) => {
       if (!payload) return;
@@ -233,6 +234,32 @@ async function loadAllFromSupabase() {
       else if (app_key === 'finance:subs')         localStorage.setItem('po_finance_subs', JSON.stringify(payload || []));
     });
   }
+  // One-time lift of pre-sync local data up to the cloud (see migrateLocalToCloud).
+  migrateLocalToCloud(seenAppKeys);
+}
+
+// Push values that existed only in this device's localStorage (from before
+// cross-device sync) up to the cloud — but ONLY for keys the cloud doesn't have
+// yet, so a value another device already synced is never clobbered. Self-limits:
+// once pushed, the next boot sees the app_key and skips it. Finance stores are
+// the only ones with recoverable local data (habits/supplements never persisted
+// to localStorage while signed in, so there is nothing to lift for them).
+function migrateLocalToCloud(seenKeys) {
+  if (!db || !currentUser) return;
+  function lift(lsKey, appKey, parse, hasData) {
+    if (seenKeys.has(appKey)) return;            // cloud already has it
+    const raw = localStorage.getItem(lsKey);
+    if (raw == null) return;                     // nothing local to lift
+    let val; try { val = parse(raw); } catch (_) { return; }
+    if (val == null || !hasData(val)) return;
+    syncAppStateKey(appKey, val);
+  }
+  const arrFull = v => Array.isArray(v) && v.length > 0;
+  lift('po_finance_fx',           'finance:fx',           v => Number(v),     v => v > 0);
+  lift('po_finance_accounts',     'finance:accounts',     v => JSON.parse(v), arrFull);
+  lift('po_finance_txn_accounts', 'finance:txn_accounts', v => JSON.parse(v), v => v && Object.keys(v).length > 0);
+  lift('po_finance_wishlist',     'finance:wishlist',     v => JSON.parse(v), arrFull);
+  lift('po_finance_subs',         'finance:subs',         v => JSON.parse(v), arrFull);
 }
 
 // ── Real-time subscription ─────────────────────────────────
