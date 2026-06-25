@@ -100,6 +100,18 @@ function storeGet(key) {
   try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
 }
 
+// Misc per-key stores that have no dedicated table/sync of their own (habits,
+// daily habit logs, supplement config + daily intake). Without this they would
+// live only in the in-memory cache when signed in and silently vanish on every
+// reload — which is why habits appeared to "reset" each day. Mirrored into the
+// shared app_state table under a `kv:` prefix so they persist + sync per device.
+function isGenericSyncKey(key) {
+  return key === 'habits'
+      || key === 'supp_config'
+      || key.indexOf('habit-log:') === 0
+      || key.indexOf('supp_taken:') === 0;
+}
+
 function storeSet(key, value) {
   if (useSupabase) {
     cache[key] = value;
@@ -108,6 +120,7 @@ function storeSet(key, value) {
     else if (key === 'inbox')          syncInbox(value);
     else if (key === 'calendar')       syncAppStateKey('calendar', value);
     else if (key === 'lifegoals')      syncAppStateKey('lifegoals', value);
+    else if (isGenericSyncKey(key))    syncAppStateKey('kv:' + key, value);
   } else {
     localStorage.setItem(key, JSON.stringify(value));
   }
@@ -209,6 +222,15 @@ async function loadAllFromSupabase() {
       // Calendar templates + life-goals — read via storeGet (cache)
       else if (app_key === 'calendar')  cache['calendar']  = payload;
       else if (app_key === 'lifegoals') cache['lifegoals'] = payload;
+      // Generic kv: stores (habits, habit logs, supplements) — read via storeGet (cache)
+      else if (app_key.indexOf('kv:') === 0) cache[app_key.slice(3)] = payload;
+      // Finance extras (FX rate, accounts, txn→account map, wishlist, local subs)
+      // — read via localStorage directly by the finance helpers
+      else if (app_key === 'finance:fx')           localStorage.setItem('po_finance_fx', String(payload));
+      else if (app_key === 'finance:accounts')     localStorage.setItem('po_finance_accounts', JSON.stringify(payload || []));
+      else if (app_key === 'finance:txn_accounts') localStorage.setItem('po_finance_txn_accounts', JSON.stringify(payload || {}));
+      else if (app_key === 'finance:wishlist')     localStorage.setItem('po_finance_wishlist', JSON.stringify(payload || []));
+      else if (app_key === 'finance:subs')         localStorage.setItem('po_finance_subs', JSON.stringify(payload || []));
     });
   }
 }
@@ -264,6 +286,24 @@ function subscribeRealtime() {
       } else if (key === 'lifegoals') {
         cache['lifegoals'] = incoming;
         window.dispatchEvent(new CustomEvent('lifegoals-changed'));
+      } else if (key && key.indexOf('kv:') === 0) {
+        const lk = key.slice(3);
+        cache[lk] = incoming;
+        if (lk === 'habits' || lk.indexOf('habit-log:') === 0) {
+          if (typeof window.renderTasksHabits === 'function') window.renderTasksHabits();
+        } else if (lk === 'supp_config' || lk.indexOf('supp_taken:') === 0) {
+          if (typeof window._renderSupplements === 'function') window._renderSupplements();
+        }
+      } else if (key && key.indexOf('finance:') === 0) {
+        if (key === 'finance:fx')                localStorage.setItem('po_finance_fx', String(incoming));
+        else if (key === 'finance:accounts')     { localStorage.setItem('po_finance_accounts', JSON.stringify(incoming || [])); finAccounts = incoming || []; }
+        else if (key === 'finance:txn_accounts') localStorage.setItem('po_finance_txn_accounts', JSON.stringify(incoming || {}));
+        else if (key === 'finance:wishlist')     localStorage.setItem('po_finance_wishlist', JSON.stringify(incoming || []));
+        else if (key === 'finance:subs')         { localStorage.setItem('po_finance_subs', JSON.stringify(incoming || [])); if (!finSubsRemote) finSubs = incoming || []; }
+        if (typeof renderFinance === 'function')       renderFinance();
+        if (typeof renderSubscriptions === 'function') renderSubscriptions();
+        if (typeof renderBudgets === 'function')       renderBudgets();
+        if (typeof renderNetWorth === 'function')      renderNetWorth();
       }
     })
     .subscribe();
@@ -696,6 +736,10 @@ function renderHabits() {
 }
 
 function initHabits() {
+  // The SPA's Tasks tab owns habits (its own `habits` / `habit-log:` stores).
+  // This legacy tracker only applies when its original #habitList container is
+  // present; otherwise bail so we don't double-bind the shared Add button.
+  if (!document.getElementById('habitList')) return;
   const inp = document.getElementById('habitInput'), addBtn = document.getElementById('habitAddBtn');
   if (!inp || !addBtn) return;
   function addHabit() {
@@ -742,7 +786,7 @@ let finSelectedType = 'expense';
 // doesn't (migration not run), we fall back to localStorage so saving still works.
 let finSubsRemote   = true;
 function finSubsLocalLoad() { try { return JSON.parse(localStorage.getItem('po_finance_subs') || '[]'); } catch { return []; } }
-function finSubsLocalSave(arr) { localStorage.setItem('po_finance_subs', JSON.stringify(arr)); }
+function finSubsLocalSave(arr) { localStorage.setItem('po_finance_subs', JSON.stringify(arr)); syncAppStateKey('finance:subs', arr); }
 function finSubIsLocalId(id) { return typeof id === 'string' && id.startsWith('loc-'); }
 function finSubLocalId() { return 'loc-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
@@ -751,7 +795,7 @@ function finFxRate() {            // GBP per €1 (editable approximation)
   const v = parseFloat(localStorage.getItem('po_finance_fx'));
   return (v && v > 0) ? v : 0.86;
 }
-function finFxSave(v) { localStorage.setItem('po_finance_fx', String(v)); }
+function finFxSave(v) { localStorage.setItem('po_finance_fx', String(v)); syncAppStateKey('finance:fx', Number(v)); }
 function finCurSym(cur) { return cur === 'GBP' ? '£' : '€'; }
 function finToHome(amount, cur) { // convert any item's amount into EUR home
   const n = Number(amount) || 0;
@@ -891,7 +935,7 @@ function renderSubscriptions() {
 
 // ── Accounts / net worth (localStorage, per-account currency) ──
 function finAccLoad() { try { return JSON.parse(localStorage.getItem('po_finance_accounts') || '[]'); } catch { return []; } }
-function finAccSave(arr) { finAccounts = arr; localStorage.setItem('po_finance_accounts', JSON.stringify(arr)); }
+function finAccSave(arr) { finAccounts = arr; localStorage.setItem('po_finance_accounts', JSON.stringify(arr)); syncAppStateKey('finance:accounts', arr); }
 
 // Transaction → account linkage (kept local, like the accounts themselves).
 function finConvert(amount, fromCur, toCur) {
@@ -908,7 +952,7 @@ function finAdjustAccount(accountId, type, amount, txnCur, direction) {
   finAccSave(all);
 }
 function finTxnAcctMapLoad() { try { return JSON.parse(localStorage.getItem('po_finance_txn_accounts') || '{}'); } catch { return {}; } }
-function finTxnAcctSet(txnId, accountId) { const m = finTxnAcctMapLoad(); if (accountId) m[txnId] = accountId; else delete m[txnId]; localStorage.setItem('po_finance_txn_accounts', JSON.stringify(m)); }
+function finTxnAcctSet(txnId, accountId) { const m = finTxnAcctMapLoad(); if (accountId) m[txnId] = accountId; else delete m[txnId]; localStorage.setItem('po_finance_txn_accounts', JSON.stringify(m)); syncAppStateKey('finance:txn_accounts', m); }
 function finTxnAcctGet(txnId) { return finTxnAcctMapLoad()[txnId]; }
 function finFillAccountSelect() {
   const sel = document.getElementById('finTxnAccount');
@@ -968,7 +1012,7 @@ const WISH_AMBER = 5;
 const FIN_WISH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7S10.5 3 7.5 3a2.5 2.5 0 0 0 0 5H12z"/><path d="M12 7s1.5-4 4.5-4a2.5 2.5 0 0 1 0 5H12z"/></svg>';
 
 function finWishLoad() { try { return JSON.parse(localStorage.getItem('po_finance_wishlist') || '[]'); } catch { return []; } }
-function finWishSave(arr) { localStorage.setItem('po_finance_wishlist', JSON.stringify(arr)); }
+function finWishSave(arr) { localStorage.setItem('po_finance_wishlist', JSON.stringify(arr)); syncAppStateKey('finance:wishlist', arr); }
 function finWishId() { return 'wish-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function finWishPctTxt(pct) { return (pct < 0.1 ? '<0.1' : pct.toFixed(pct < 10 ? 1 : 0)) + '%'; }
 function finWishTier(pct, hasNetWorth) {

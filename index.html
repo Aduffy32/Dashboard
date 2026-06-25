@@ -3115,12 +3115,23 @@
     });
     updateSelectBar();
   }
+  // Deleting a task that was materialized from a recurring calendar template
+  // must record an exception for that date, otherwise the template re-appears
+  // (re-materializes) and the deletion looks like it "didn't stick". Mirrors the
+  // Goals/calendar tab's deleteCalItem().
+  function calExcIfTemplate(goal){
+    if(goal&&goal.tplId&&typeof calAddException==='function'){
+      calAddException(goal.tplId,todayKey().replace('goals:',''));
+    }
+  }
   function deleteSelected(){
     var ids=Object.keys(selectedIds);
     if(!ids.length) return;
     if(!confirm('Delete '+ids.length+' task'+(ids.length>1?'s':'')+'?')) return;
     var set={};ids.forEach(function(i){set[i]=true;});
-    saveTodayGoals(getTodayGoals().filter(function(g){return !set[g.id];}));
+    var goals=getTodayGoals();
+    goals.forEach(function(g){ if(set[g.id]) calExcIfTemplate(g); });
+    saveTodayGoals(goals.filter(function(g){return !set[g.id];}));
     exitSelectMode();
   }
   $('tasksSelectBtn')&&$('tasksSelectBtn').addEventListener('click',function(){selectMode?exitSelectMode():enterSelectMode();});
@@ -3484,6 +3495,7 @@
   }
   $('habitAddBtn')&&$('habitAddBtn').addEventListener('click',addHabit);
   $('habitInput')&&$('habitInput').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addHabit();}});
+  window.renderTasksHabits=renderHabits;   // let cross-device sync re-render habits
 
   // Quick add
   function quickAdd(){
@@ -3541,7 +3553,9 @@
   $('tasksSheetDelete')&&$('tasksSheetDelete').addEventListener('click',function(){
     var id=$('tasksSheetId')?$('tasksSheetId').value:'';
     if(!id) return;
-    saveTodayGoals(getTodayGoals().filter(function(g){return g.id!==id;}));
+    var goals=getTodayGoals();
+    calExcIfTemplate(goals.find(function(g){return g.id===id;}));
+    saveTodayGoals(goals.filter(function(g){return g.id!==id;}));
     closeSheet();renderSpine();
   });
   $('tasksSheet')&&$('tasksSheet').addEventListener('click',function(e){if(e.target===$('tasksSheet')) closeSheet();});
