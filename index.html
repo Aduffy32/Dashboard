@@ -459,13 +459,103 @@
 .hlth-panel.hlth-enter { animation:hlthPanelIn 0.26s cubic-bezier(0.23,1,0.32,1) both; }
 @keyframes hlthPanelIn { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
 
-/* ── Runs placeholder ──────────────────────────────────────── */
-.runs-empty { display:flex; flex-direction:column; align-items:center; text-align:center; padding:48px 24px; background:rgba(255,255,255,0.025); border:1px dashed rgba(255,255,255,0.12); border-radius:16px; }
-.runs-empty-icon { width:54px; height:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:rgba(91,184,245,0.08); border:1px solid rgba(91,184,245,0.18); color:#5BB8F5; margin-bottom:16px; }
-.runs-empty-title { font-family:var(--font-display-serif); font-size:20px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
-.runs-empty-sub { font-size:13px; color:var(--text-tertiary); line-height:1.55; max-width:300px; }
-.runs-empty-tags { display:flex; gap:7px; margin-top:18px; }
-.runs-empty-tag { font-family:ui-monospace,monospace; font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); border:1px solid rgba(255,255,255,0.12); border-radius:999px; padding:6px 12px; }
+/* ── Runs · StatSports APEX (football GPS) ─────────────────── */
+#runsPanel { --rns-accent:#5BB8F5; --rns-amber:#F2C063; --rns-rose:#F2818A; --rns-teal:#57E0A1; }
+
+/* header band */
+.rns-head { display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:9px 14px; margin-bottom:12px; }
+.rns-head-pulse { width:7px; height:7px; border-radius:50%; background:var(--rns-accent); box-shadow:0 0 8px var(--rns-accent); flex-shrink:0; animation:rns-pulse 2s ease-in-out infinite; }
+@keyframes rns-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.rns-head-brand { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.18em; text-transform:uppercase; color:var(--text-tertiary); white-space:nowrap; }
+.rns-head-spacer { flex:1; }
+.rns-head-meta { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.08em; color:var(--text-tertiary); white-space:nowrap; }
+.rns-head-tag { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.12em; text-transform:uppercase; color:var(--rns-amber); border:1px solid rgba(242,192,99,0.3); border-radius:999px; padding:2px 7px; flex-shrink:0; }
+
+/* hero — max speed gauge */
+.rns-hero { display:flex; gap:14px; align-items:center; background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.07); border-radius:14px; padding:16px; margin-bottom:10px; }
+.rns-gauge-wrap { position:relative; flex-shrink:0; width:184px; height:112px; }
+@media (max-width:420px) { .rns-gauge-wrap { width:148px; height:90px; } }
+.rns-gauge-svg { width:100%; height:100%; display:block; }
+.rns-gauge-arc { transition:stroke-dashoffset 0.95s cubic-bezier(0.16,1,0.3,1); }
+.rns-gauge-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding-top:20%; pointer-events:none; }
+.rns-gauge-num { font-family:var(--font-display-serif); font-size:46px; font-weight:600; line-height:1; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; color:var(--text-primary); }
+@media (max-width:420px) { .rns-gauge-num { font-size:38px; } }
+.rns-gauge-unit { font-family:ui-monospace,monospace; font-size:8.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--text-tertiary); margin-top:3px; }
+.rns-gauge-end { position:absolute; bottom:4px; font-family:ui-monospace,monospace; font-size:8px; color:var(--text-tertiary); font-variant-numeric:tabular-nums; }
+.rns-gauge-min { left:6px; }
+.rns-gauge-max { right:6px; }
+
+.rns-hero-side { flex:1; min-width:0; display:flex; flex-direction:column; }
+.rns-hero-title { font-family:var(--font-display-serif); font-size:18px; color:var(--text-primary); line-height:1.1; }
+.rns-hero-sub { font-size:11px; color:var(--text-tertiary); margin-top:2px; }
+.rns-pb-row { display:flex; align-items:baseline; gap:6px; margin-top:11px; }
+.rns-pb-val { font-family:var(--font-display-serif); font-size:21px; font-weight:500; color:var(--rns-amber); font-variant-numeric:tabular-nums; line-height:1; }
+.rns-pb-lbl { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); }
+.rns-pb-chip { display:inline-block; font-family:ui-monospace,monospace; font-size:9px; background:rgba(255,255,255,0.06); color:var(--text-secondary); border-radius:999px; padding:3px 9px; margin-top:8px; align-self:flex-start; }
+.rns-pb-chip-best { background:rgba(242,192,99,0.14); color:var(--rns-amber); }
+.rns-spark { display:flex; align-items:flex-end; gap:4px; height:40px; margin-top:13px; }
+.rns-spark-bar { flex:1; min-height:3px; height:3px; border-radius:2px 2px 0 0; background:rgba(91,184,245,0.28); transition:height 0.6s cubic-bezier(0.16,1,0.3,1); }
+.rns-spark-bar.is-latest { background:var(--rns-amber); }
+.rns-spark-cap { font-family:ui-monospace,monospace; font-size:7.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); margin-top:6px; }
+
+/* metric grid */
+.rns-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+@media (min-width:768px) { .rns-grid { grid-template-columns:repeat(4,1fr); } }
+.rns-stat { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:10px; padding:14px 14px 12px; }
+.rns-stat-lbl { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-tertiary); display:block; margin-bottom:5px; }
+.rns-stat-val { font-family:var(--font-display-serif); font-size:30px; font-weight:500; line-height:1.05; font-variant-numeric:tabular-nums; color:var(--text-primary); display:flex; align-items:baseline; gap:3px; }
+.rns-stat-val-sm { font-size:26px; }
+.rns-stat-slash { color:var(--text-tertiary); font-size:18px; }
+.rns-stat-unit { font-size:11px; font-weight:400; color:var(--text-tertiary); font-family:ui-sans-serif,system-ui,sans-serif; }
+.rns-stat-sub { font-size:10px; color:var(--text-tertiary); margin-top:4px; }
+
+/* generic card */
+.rns-card { background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:14px 16px; margin-bottom:10px; }
+.rns-card-hdr { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:13px; }
+.rns-card-title { font-family:var(--font-display-serif); font-size:15px; color:var(--text-primary); }
+.rns-card-meta { font-family:ui-monospace,monospace; font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-tertiary); }
+
+/* speed zones */
+.rns-zone-bar { display:flex; height:16px; border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); }
+.rns-zone-seg { height:100%; width:0; min-width:0; transition:width 0.7s cubic-bezier(0.16,1,0.3,1); }
+.rns-zone-legend { display:grid; grid-template-columns:repeat(3,1fr); gap:10px 14px; margin-top:14px; }
+@media (min-width:560px) { .rns-zone-legend { grid-template-columns:repeat(6,1fr); } }
+.rns-zone-item { min-width:0; }
+.rns-zone-top { display:flex; align-items:center; gap:5px; }
+.rns-zone-dot { width:7px; height:7px; border-radius:2px; flex-shrink:0; }
+.rns-zone-name { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-tertiary); white-space:nowrap; }
+.rns-zone-val { font-family:var(--font-display-serif); font-size:16px; color:var(--text-secondary); font-variant-numeric:tabular-nums; margin-top:4px; }
+.rns-zone-unit { font-size:9px; color:var(--text-tertiary); }
+
+/* load band */
+.rns-band { display:flex; border-top:1px solid rgba(255,255,255,0.06); margin-top:15px; padding-top:13px; }
+.rns-band-item { flex:1; text-align:center; padding:0 6px; }
+.rns-band-item + .rns-band-item { border-left:1px solid rgba(255,255,255,0.06); }
+.rns-band-val { font-family:var(--font-display-serif); font-size:19px; color:var(--text-primary); font-variant-numeric:tabular-nums; line-height:1; }
+.rns-band-lbl { font-family:ui-monospace,monospace; font-size:7.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-tertiary); margin-top:5px; }
+
+/* session list / switcher */
+.rns-sess-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 4px; border-bottom:1px solid rgba(255,255,255,0.05); cursor:pointer; border-radius:8px; -webkit-tap-highlight-color:transparent; transition:background 0.15s; }
+.rns-sess-row:last-child { border-bottom:none; }
+.rns-sess-row.is-sel { background:rgba(91,184,245,0.08); }
+.rns-sess-row:active { background:rgba(255,255,255,0.05); }
+@media (hover:hover) { .rns-sess-row:hover { background:rgba(255,255,255,0.04); } }
+@media (pointer:coarse) { .rns-sess-row { min-height:44px; } }
+.rns-sess-row:focus-visible { outline:2px solid var(--rns-accent); outline-offset:2px; }
+.rns-sess-left { min-width:0; display:flex; flex-direction:column; gap:3px; }
+.rns-sess-date { font-family:var(--font-display-serif); font-size:14px; color:var(--text-primary); }
+.rns-sess-typechip { font-family:ui-monospace,monospace; font-size:8px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-tertiary); }
+.rns-type-match { color:var(--rns-rose); }
+.rns-type-training { color:var(--rns-teal); }
+.rns-sess-stats { display:flex; gap:12px; flex-shrink:0; }
+.rns-sess-stat { text-align:right; }
+.rns-sess-stat-val { font-family:var(--font-display-serif); font-size:15px; color:var(--text-secondary); font-variant-numeric:tabular-nums; line-height:1; }
+.rns-sess-stat-lbl { font-family:ui-monospace,monospace; font-size:7px; letter-spacing:0.06em; color:var(--text-tertiary); margin-top:3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rns-gauge-arc, .rns-spark-bar, .rns-zone-seg { transition:none; }
+  .rns-head-pulse { animation:none; }
+}
 
 /* ── Nav: Health cycle control ─────────────────────────────── */
 .nav-cycle { transition:transform 0.14s cubic-bezier(0.23,1,0.32,1), color 0.2s; }
@@ -1911,20 +2001,9 @@
   <!-- Body panel: Hydration + Body weight + Supplements -->
   <div id="hydrationPanel" class="hlth-panel"></div>
 
-  <!-- Runs panel (placeholder — Strava + sports GPS later) -->
+  <!-- Runs panel — StatSports APEX football GPS (rendered by renderRuns) -->
   <div id="runsPanel" class="hlth-panel">
-    <div class="runs-empty">
-      <div class="runs-empty-icon">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-      </div>
-      <div class="runs-empty-title">Runs</div>
-      <div class="runs-empty-sub">Your runs and GPS workouts will live here. Strava and sports-GPS sync are coming soon.</div>
-      <div class="runs-empty-tags">
-        <span class="runs-empty-tag">Strava</span>
-        <span class="runs-empty-tag">GPS</span>
-        <span class="runs-empty-tag">Soon</span>
-      </div>
-    </div>
+    <div id="runsSection"></div>
   </div>
 
 </div>
@@ -3697,7 +3776,7 @@
   var TABS = [
     { key:'peak',  label:'Peak',  panel:'caffeinePanel',  title:'Peak',  cap:'Energy · Caffeine' },
     { key:'body',  label:'Body',  panel:'hydrationPanel', title:'Body',  cap:'Hydration · Weight · Supplements' },
-    { key:'runs',  label:'Runs',  panel:'runsPanel',      title:'Runs',  cap:'Strava & GPS — soon' },
+    { key:'runs',  label:'Runs',  panel:'runsPanel',      title:'Runs',  cap:'Max speed · StatSports GPS' },
     { key:'whoop', label:'Whoop', panel:'whoopPanel',     title:'Whoop', cap:'Recovery · Sleep · Strain' }
   ];
   var ALIAS = { recovery:'whoop', caffeine:'peak', hydration:'body' }; // legacy deep-links
@@ -3757,6 +3836,8 @@
     if (t.key === 'peak' && typeof cafSyncFromShared === 'function' && typeof cafRerender === 'function') {
       cafSyncFromShared(); cafRerender();
     }
+    // Runs panel renders its StatSports section on show
+    if (t.key === 'runs' && typeof rnsShow === 'function') rnsShow();
 
   }
 
@@ -3785,6 +3866,221 @@
     applyNavMode();
   });
 })();
+
+// ── Runs · StatSports APEX (football GPS) ─────────────────────
+// The data layer is intentionally isolated. Today it serves sample sessions so
+// the UI is fully designed; once the StatSports API contract is confirmed, set
+// RNS_USE_LIVE=true and map the real response in rnsNormalize() — the render
+// code only ever reads the normalized shape, so no UI rework is needed.
+var RNS_USE_LIVE = false;     // flip true once statsports-fetch.js is wired
+var RNS_PB_KMH   = 33.2;      // personal-best max speed (km/h)
+
+var RNS_ZONES = [
+  { name:'Walk',   band:'0–6',   color:'#5A6473' },
+  { name:'Jog',    band:'6–12',  color:'#5B8FF5' },
+  { name:'Run',    band:'12–18', color:'#57E0A1' },
+  { name:'HSR',    band:'18–21', color:'#F2C063' },
+  { name:'High',   band:'21–25', color:'#F0945A' },
+  { name:'Sprint', band:'25+',   color:'#F2818A' }
+];
+
+// Sample sessions, newest first. zones = metres in each of the 6 speed bands.
+var RNS_SAMPLE = [
+  { date:'2026-06-26', type:'Training', dur:78, maxSpeed:32.4, sprints:14, accel:41, decel:37, dsl:372, zones:[2500,2050,1180,520,290,280] },
+  { date:'2026-06-24', type:'Training', dur:72, maxSpeed:31.1, sprints:11, accel:36, decel:33, dsl:318, zones:[2350,1950,1050,430,210,180] },
+  { date:'2026-06-22', type:'Match',    dur:94, maxSpeed:33.2, sprints:23, accel:58, decel:54, dsl:561, zones:[3100,2750,1850,820,420,360] },
+  { date:'2026-06-20', type:'Training', dur:65, maxSpeed:30.4, sprints:9,  accel:31, decel:29, dsl:286, zones:[2200,1800,920,360,170,130] },
+  { date:'2026-06-18', type:'Training', dur:80, maxSpeed:31.8, sprints:13, accel:39, decel:36, dsl:358, zones:[2550,2100,1150,500,260,220] },
+  { date:'2026-06-15', type:'Match',    dur:90, maxSpeed:32.9, sprints:21, accel:55, decel:50, dsl:537, zones:[3000,2680,1780,790,400,330] },
+  { date:'2026-06-13', type:'Training', dur:70, maxSpeed:30.9, sprints:10, accel:34, decel:31, dsl:305, zones:[2300,1880,1000,410,200,160] }
+];
+
+// Map a raw StatSports session payload → the shape the UI consumes. Field names
+// are a best-guess until we see a real response; adjust ONLY here.
+function rnsNormalize(raw){
+  return {
+    date:     raw.date || raw.sessionDate || raw.startTime,
+    type:     raw.type || raw.sessionType || 'Session',
+    dur:      Math.round(+(raw.duration ?? raw.durationMin ?? raw.totalTime ?? 0)),
+    maxSpeed: +(raw.maxSpeed ?? raw.topSpeed ?? raw.maxVelocityKmh ?? 0),
+    sprints:  +(raw.sprints ?? raw.sprintCount ?? 0),
+    accel:    +(raw.accelerations ?? raw.accel ?? 0),
+    decel:    +(raw.decelerations ?? raw.decel ?? 0),
+    dsl:      +(raw.dynamicStressLoad ?? raw.dsl ?? 0),
+    zones:    raw.zones || raw.speedZones || [0,0,0,0,0,0]
+  };
+}
+
+var rnsData  = RNS_SAMPLE.slice();
+var rnsSel   = 0;
+var rnsBooted = false;
+
+function rnsSum(a){ return a.reduce(function(x,y){ return x+y; }, 0); }
+function rnsNum(n,d){ d=d||0; return Number(n).toLocaleString('en-GB',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function rnsDate(iso){
+  var dt = new Date(iso+'T00:00:00');
+  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return days[dt.getDay()]+' '+dt.getDate()+' '+mons[dt.getMonth()];
+}
+function rnsCell(v,l){ return '<div class="rns-sess-stat"><div class="rns-sess-stat-val">'+v+'</div><div class="rns-sess-stat-lbl">'+l+'</div></div>'; }
+
+// Future live path — proxied through Netlify so the API key stays server-side.
+async function rnsLoad(){
+  if (RNS_USE_LIVE) {
+    try {
+      var uid = window.currentUserId || (window.supaUser && window.supaUser.id);
+      var r = await fetch('/.netlify/functions/statsports-fetch', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ userId: uid, endpoint:'sessions' })
+      });
+      var j = await r.json();
+      if (Array.isArray(j.sessions) && j.sessions.length) {
+        rnsData = j.sessions.map(rnsNormalize).sort(function(a,b){ return a.date<b.date?1:-1; });
+      }
+    } catch (e) { /* fall back to sample */ }
+  }
+  renderRuns(0);
+}
+
+// Called by the carousel when the Runs section is shown.
+function rnsShow(){
+  if (!rnsBooted) { rnsBooted = true; if (RNS_USE_LIVE) { rnsLoad(); return; } }
+  renderRuns();
+}
+
+function renderRuns(idx){
+  var host = document.getElementById('runsSection');
+  if (!host) return;
+  if (typeof idx === 'number') rnsSel = Math.max(0, Math.min(idx, rnsData.length-1));
+  var s = rnsData[rnsSel] || rnsData[0];
+  if (!s) return;
+
+  var total = rnsSum(s.zones);
+  var hsr   = s.zones[3]+s.zones[4]+s.zones[5];                 // ≥18 km/h
+  var dpm   = s.dur ? total / s.dur : 0;                        // metres / min
+  var pbPct = Math.round(s.maxSpeed / RNS_PB_KMH * 100);
+  var offPb = Math.max(0, RNS_PB_KMH - s.maxSpeed);
+  var isPb  = s.maxSpeed >= RNS_PB_KMH - 0.001;
+  var avgTot = rnsSum(rnsData.map(function(x){ return rnsSum(x.zones); })) / rnsData.length;
+  var dTot  = total - avgTot;
+
+  // ── Max-speed gauge geometry (top semicircle ∩) ──
+  var R=72, CX=86, CY=86, LEN=Math.PI*R;
+  var gMax = Math.ceil(Math.max(RNS_PB_KMH, s.maxSpeed)/5)*5;
+  var frac = Math.min(s.maxSpeed/gMax, 1);
+  var off  = LEN*(1-frac);
+
+  // ── Max-speed sparkline (oldest → newest) ──
+  var speeds = rnsData.map(function(x){ return x.maxSpeed; });
+  var sMin = Math.min.apply(null, speeds), sMax = Math.max.apply(null, speeds);
+  var spark = rnsData.slice().reverse().map(function(x){
+    var norm = sMax>sMin ? (x.maxSpeed - sMin)/(sMax - sMin) : 1;
+    var h = Math.round((0.30 + 0.70*norm)*100);
+    return '<div class="rns-spark-bar'+(x===s?' is-latest':'')+'" data-h="'+h+'%" title="'+rnsNum(x.maxSpeed,1)+' km/h"></div>';
+  }).join('');
+
+  // ── Speed-zone distribution ──
+  var segs = s.zones.map(function(z,i){
+    var pct = total ? z/total*100 : 0;
+    return '<div class="rns-zone-seg" style="background:'+RNS_ZONES[i].color+'" data-w="'+pct.toFixed(2)+'%"></div>';
+  }).join('');
+  var legend = RNS_ZONES.map(function(zn,i){
+    return '<div class="rns-zone-item"><div class="rns-zone-top"><span class="rns-zone-dot" style="background:'+zn.color+'"></span>'
+      + '<span class="rns-zone-name">'+zn.name+'</span></div>'
+      + '<div class="rns-zone-val">'+rnsNum(s.zones[i])+'<span class="rns-zone-unit"> m</span></div></div>';
+  }).join('');
+
+  // ── Session switcher / history ──
+  var list = rnsData.map(function(x,i){
+    var t = rnsSum(x.zones);
+    var typeCls = x.type==='Match' ? 'rns-type-match' : 'rns-type-training';
+    return '<div class="rns-sess-row'+(i===rnsSel?' is-sel':'')+'" role="button" tabindex="0" onclick="renderRuns('+i+')" onkeydown="if(event.key===\'Enter\')renderRuns('+i+')">'
+      + '<div class="rns-sess-left"><span class="rns-sess-date">'+rnsDate(x.date)+'</span>'
+      + '<span class="rns-sess-typechip '+typeCls+'">'+x.type+' · '+x.dur+'′</span></div>'
+      + '<div class="rns-sess-stats">'
+      +   rnsCell(rnsNum(t/1000,1), 'KM')
+      +   rnsCell(rnsNum(x.maxSpeed,1), 'KM/H')
+      +   rnsCell(x.sprints, 'SPR')
+      + '</div></div>';
+  }).join('');
+
+  var pbChip = isPb
+    ? '<span class="rns-pb-chip rns-pb-chip-best">★ Personal best</span>'
+    : '<span class="rns-pb-chip">'+pbPct+'% of best · '+rnsNum(offPb,1)+' km/h off</span>';
+
+  host.innerHTML =
+    // header band
+    '<div class="rns-head">'
+    +   '<span class="rns-head-pulse"></span>'
+    +   '<span class="rns-head-brand">StatSports · Apex</span>'
+    +   '<span class="rns-head-spacer"></span>'
+    +   '<span class="rns-head-meta">'+rnsDate(s.date)+' · '+s.type+'</span>'
+    +   (RNS_USE_LIVE ? '' : '<span class="rns-head-tag">Sample</span>')
+    + '</div>'
+    // hero — max speed
+    + '<div class="rns-hero">'
+    +   '<div class="rns-gauge-wrap">'
+    +     '<svg class="rns-gauge-svg" viewBox="0 0 172 104" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'
+    +       '<defs><linearGradient id="rnsGaugeGrad" x1="0" y1="0" x2="1" y2="0">'
+    +         '<stop offset="0" stop-color="#5B8FF5"/><stop offset="0.45" stop-color="#57E0A1"/>'
+    +         '<stop offset="0.78" stop-color="#F2C063"/><stop offset="1" stop-color="#F2818A"/>'
+    +       '</linearGradient></defs>'
+    +       '<path d="M '+(CX-R)+' '+CY+' A '+R+' '+R+' 0 0 0 '+(CX+R)+' '+CY+'" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="9" stroke-linecap="round"/>'
+    +       '<path id="rnsGaugeArc" class="rns-gauge-arc" d="M '+(CX-R)+' '+CY+' A '+R+' '+R+' 0 0 0 '+(CX+R)+' '+CY+'" fill="none" stroke="url(#rnsGaugeGrad)" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+LEN.toFixed(2)+'" stroke-dashoffset="'+LEN.toFixed(2)+'" data-off="'+off.toFixed(2)+'"/>'
+    +     '</svg>'
+    +     '<div class="rns-gauge-center">'
+    +       '<div class="rns-gauge-num">'+rnsNum(s.maxSpeed,1)+'</div>'
+    +       '<div class="rns-gauge-unit">km/h</div>'
+    +     '</div>'
+    +     '<span class="rns-gauge-end rns-gauge-min">0</span>'
+    +     '<span class="rns-gauge-end rns-gauge-max">'+gMax+'</span>'
+    +   '</div>'
+    +   '<div class="rns-hero-side">'
+    +     '<div class="rns-hero-title">Max Speed</div>'
+    +     '<div class="rns-hero-sub">Top speed this session</div>'
+    +     '<div class="rns-pb-row"><span class="rns-pb-val">'+rnsNum(RNS_PB_KMH,1)+'</span><span class="rns-pb-lbl">season best · km/h</span></div>'
+    +     pbChip
+    +     '<div class="rns-spark" aria-hidden="true">'+spark+'</div>'
+    +     '<div class="rns-spark-cap">Max speed · last '+rnsData.length+'</div>'
+    +   '</div>'
+    + '</div>'
+    // metric grid
+    + '<div class="rns-grid">'
+    +   '<div class="rns-stat"><span class="rns-stat-lbl">Total Distance</span><div class="rns-stat-val">'+rnsNum(total/1000,2)+'<span class="rns-stat-unit">km</span></div><div class="rns-stat-sub">'+(dTot>=0?'+':'−')+rnsNum(Math.abs(dTot)/1000,1)+' km vs avg</div></div>'
+    +   '<div class="rns-stat"><span class="rns-stat-lbl">High-Speed Run</span><div class="rns-stat-val">'+rnsNum(hsr)+'<span class="rns-stat-unit">m</span></div><div class="rns-stat-sub">≥ 18 km/h</div></div>'
+    +   '<div class="rns-stat"><span class="rns-stat-lbl">Sprints</span><div class="rns-stat-val">'+s.sprints+'</div><div class="rns-stat-sub">≥ 25 km/h efforts</div></div>'
+    +   '<div class="rns-stat"><span class="rns-stat-lbl">Accel / Decel</span><div class="rns-stat-val rns-stat-val-sm">'+s.accel+' <span class="rns-stat-slash">/</span> '+s.decel+'</div><div class="rns-stat-sub">high-intensity</div></div>'
+    + '</div>'
+    // speed zones
+    + '<div class="rns-card">'
+    +   '<div class="rns-card-hdr"><span class="rns-card-title">Speed Zones</span><span class="rns-card-meta">distance · km/h</span></div>'
+    +   '<div class="rns-zone-bar">'+segs+'</div>'
+    +   '<div class="rns-zone-legend">'+legend+'</div>'
+    +   '<div class="rns-band">'
+    +     '<div class="rns-band-item"><div class="rns-band-val">'+rnsNum(s.dsl)+'</div><div class="rns-band-lbl">Stress Load</div></div>'
+    +     '<div class="rns-band-item"><div class="rns-band-val">'+rnsNum(dpm)+'</div><div class="rns-band-lbl">m / min</div></div>'
+    +     '<div class="rns-band-item"><div class="rns-band-val">'+s.dur+'</div><div class="rns-band-lbl">minutes</div></div>'
+    +   '</div>'
+    + '</div>'
+    // session history / switcher
+    + '<div class="rns-card">'
+    +   '<div class="rns-card-hdr"><span class="rns-card-title">Recent Sessions</span><span class="rns-card-meta">tap to view</span></div>'
+    +   list
+    + '</div>';
+
+  requestAnimationFrame(function(){ requestAnimationFrame(rnsAnimate); });
+}
+
+function rnsAnimate(){
+  var arc = document.getElementById('rnsGaugeArc');
+  if (arc) arc.style.strokeDashoffset = arc.dataset.off;
+  document.querySelectorAll('#runsSection .rns-spark-bar').forEach(function(b){ b.style.height = b.dataset.h; });
+  document.querySelectorAll('#runsSection .rns-zone-seg').forEach(function(z){ z.style.width = z.dataset.w; });
+}
+
+window.renderRuns = renderRuns;
+window.rnsShow = rnsShow;
 
 // ── Caffeine tracker (health tab embedded) ────────────────────
 var CAF_HALF_LIFE   = 5;
